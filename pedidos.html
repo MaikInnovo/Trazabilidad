@@ -22,11 +22,13 @@
     .btns { display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
     button { padding: 10px 14px; border: 0; border-radius: 10px; background: var(--pri); color:#fff; font-weight: 800; cursor: pointer; }
     button.secondary { background: var(--sec); }
+    button.danger { background: var(--err); }
     table { width:100%; border-collapse: collapse; font-size: 14px; }
     th, td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
     tr:hover { background: #f8fafc; }
     .hl { background: #eef6ff; }
     .status { margin-top: 6px; font-weight:700; }
+    .actions { display:flex; gap:8px; }
   </style>
 </head>
 <body>
@@ -75,6 +77,7 @@
             <th>Reng. MP</th>
             <th>Reng. Empaque</th>
             <th>Estado</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -108,6 +111,10 @@
 
     function readLS(key) {
       try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
+    }
+    function writeLS(key, arr) {
+      try { localStorage.setItem(key, JSON.stringify(arr)); return true; }
+      catch(e){ alert("No se pudo guardar"); return false; }
     }
     function toCSV(rows) {
       if (!rows || rows.length === 0) return "";
@@ -147,19 +154,14 @@
       const fCli = ($("#f_cliente").value || "").trim().toLowerCase();
 
       let arr = [...lotesPF];
-      // Filtrar por fecha exacta si viene
       if (fFecha) arr = arr.filter(p => (p.fecha || "") === fFecha);
-      // Filtrar por ID contiene
       if (fId) arr = arr.filter(p => (p.id_lote_pf || "").toLowerCase().includes(fId));
-      // Filtrar por cliente contiene
       if (fCli) arr = arr.filter(p => (p.cliente_destino || "").toLowerCase().includes(fCli));
 
       renderTable(arr);
       $("#list_status").textContent = `${arr.length} pedido(s) encontrados`;
-      // Limpiar selección de detalle
       selectedPF = null;
       $("#detalleCard").style.display = "none";
-      $("#tabla tbody tr").forEach?.(() => {}); // no-op
     }
 
     function renderTable(arr) {
@@ -177,8 +179,17 @@
           <td>${mp}</td>
           <td>${em}</td>
           <td>${p.estado || "-"}</td>
+          <td>
+            <div class="actions">
+              <button class="danger" data-del-pf="${p.id_lote_pf}">Eliminar</button>
+            </div>
+          </td>
         `;
-        tr.addEventListener("click", () => showDetalle(p));
+        tr.addEventListener("click", (ev) => {
+          // Evitar que el click del botón eliminar dispare el detalle
+          if (ev.target.closest("[data-del-pf]")) return;
+          showDetalle(p);
+        });
         tb.appendChild(tr);
       });
     }
@@ -214,9 +225,37 @@
       });
     }
 
+    // Eliminar pedido (con consumos)
+    document.addEventListener("click", (ev) => {
+      const btn = ev.target.closest("[data-del-pf]");
+      if (!btn) return;
+      const id = btn.getAttribute("data-del-pf");
+      const mpToDel = consMP.filter(r => r.id_lote_pf === id).length;
+      const empToDel = consEmp.filter(r => r.id_lote_pf === id).length;
+      const ok = confirm(`Eliminar pedido ${id}?\nTambién se eliminarán ${mpToDel} consumo(s) de MP y ${empToDel} consumo(s) de Empaque.`);
+      if (!ok) return;
+
+      // Borrar en memoria
+      lotesPF = lotesPF.filter(p => p.id_lote_pf !== id);
+      consMP = consMP.filter(r => r.id_lote_pf !== id);
+      consEmp = consEmp.filter(r => r.id_lote_pf !== id);
+
+      // Persistir
+      const ok1 = writeLS("lotesPF", lotesPF);
+      const ok2 = writeLS("consumosMP", consMP);
+      const ok3 = writeLS("consumosEmpaque", consEmp);
+      if (ok1 && ok2 && ok3) {
+        // Si el detalle era ese, lo ocultamos
+        if (selectedPF && selectedPF.id_lote_pf === id) {
+          selectedPF = null;
+          $("#detalleCard").style.display = "none";
+        }
+        applyFilters();
+      }
+    });
+
     // Exportar lista filtrada
     $("#btn_export_lista").addEventListener("click", () => {
-      // reconstruir la lista filtrada tal como en applyFilters
       const fFecha = $("#f_fecha").value || "";
       const fId = ($("#f_id").value || "").trim().toLowerCase();
       const fCli = ($("#f_cliente").value || "").trim().toLowerCase();
@@ -234,7 +273,6 @@
     $("#btn_export_det").addEventListener("click", () => {
       if (!selectedPF) { alert("Selecciona un pedido"); return; }
       const pf = selectedPF;
-      // Construimos un CSV con encabezado del pedido y luego dos secciones
       const lines = [];
       lines.push("ID Pedido,Fecha,Cliente,Responsable,Estado,ts_cierre");
       lines.push([pf.id_lote_pf, pf.fecha || "", pf.cliente_destino || "", pf.responsable || "", pf.estado || "", pf.ts_cierre || ""].map(s => `"${String(s||"").replace(/"/g,'""')}"`).join(","));
@@ -268,7 +306,6 @@
       consMP  = readLS("consumosMP");
       consEmp = readLS("consumosEmpaque");
 
-      // Fecha por defecto: hoy
       const today = new Date();
       const iso = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
       $("#f_fecha").value = iso;
