@@ -20,7 +20,9 @@
     .card { background: var(--card); border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; box-shadow: 0 8px 20px rgba(0,0,0,.05); display:flex; flex-direction:column; gap:12px; }
     .card h2 { font-size: 18px; margin: 0; display:flex; align-items:center; gap:10px; }
     .emoji { font-size: 28px; line-height: 1; }
-    a.button { display:inline-block; background: var(--pri); color:#fff; text-decoration:none; font-weight:800; padding:10px 14px; border-radius:10px; }
+    a.button, button.button { display:inline-block; background: var(--pri); color:#fff; text-decoration:none; font-weight:800; padding:10px 14px; border-radius:10px; border:none; cursor:pointer; }
+    .muted { color: var(--muted); font-size: 12px; }
+    .actions { margin-top: 16px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   </style>
 </head>
 <body>
@@ -57,6 +59,11 @@
         <a class="button" href="./inventario.html">Ir a Inventario</a>
       </div>
     </div>
+
+    <div class="actions">
+      <button class="button" onclick="migrarAlServidor()">Migrar al servidor</button>
+      <span class="muted">Sube al servidor los datos guardados en este navegador (lotes y consumos).</span>
+    </div>
   </div>
 
   <script>
@@ -87,17 +94,11 @@
     }
 
     // Endpoints específicos
-    async function loadLotesPF(filtros) { return apiGet("/api/lotesPF", filtros); }
     async function saveLotePF(pf) { return apiPost("/api/lotesPF", pf); }
-    async function deleteLotePF(id) { return apiDelete(`/api/lotesPF/${encodeURIComponent(id)}`); }
-    async function loadConsMP(pf) { return apiGet("/api/consumosMP", { pf }); }
     async function addConsMP(r) { return apiPost("/api/consumosMP", r); }
-    async function delConsMP(id) { return apiDelete(`/api/consumosMP/${id}`); }
-    async function loadConsEmp(pf) { return apiGet("/api/consumosEmpaque", { pf }); }
     async function addConsEmp(r) { return apiPost("/api/consumosEmpaque", r); }
-    async function delConsEmp(id) { return apiDelete(`/api/consumosEmpaque/${id}`); }
 
-    // Migración opcional desde LocalStorage al servidor (puedes llamarla desde la consola si quieres)
+    // Migración opcional desde LocalStorage al servidor (se usa con el botón)
     async function migrarAlServidor() {
       try {
         const lotesPF = JSON.parse(localStorage.getItem("lotesPF") || "[]");
