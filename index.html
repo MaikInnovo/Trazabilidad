@@ -1,31 +1,117 @@
-<div class="grid">
-  <div class="card">
-    <h2><span class="emoji">🥚</span> Registro de materiales</h2>
-    <a class="button" href="./recepcion.html">Ir a Recepción</a>
-  </div>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Trazabilidad Bodega de Huevo Palmas</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root { --pri:#0d6efd; --sec:#6c757d; --bg:#f6f7fb; --card:#fff; --muted:#657082; }
+    *{box-sizing:border-box}
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: #222; }
+    .shell { max-width: 1100px; margin: 0 auto; padding: 28px 16px; }
+    header { margin-bottom: 12px; }
+    h1 { font-size: 24px; margin:0 0 10px; }
+    .hero { background: linear-gradient(135deg,#fff7e6,#fde68a); border: 1px solid #f1d48a; padding: 14px; border-radius: 12px; display:flex; align-items:center; gap:12px; margin-bottom: 16px; }
+    .hero .emoji { font-size: 30px; }
+    .hero .title { font-weight: 800; }
+    .hero .sub { color: var(--muted); margin-top: 2px; font-size: 14px; }
+    .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; box-shadow: 0 8px 20px rgba(0,0,0,.05); display:flex; flex-direction:column; gap:12px; }
+    .card h2 { font-size: 18px; margin: 0; display:flex; align-items:center; gap:10px; }
+    .emoji { font-size: 28px; line-height: 1; }
+    a.button { display:inline-block; background: var(--pri); color:#fff; text-decoration:none; font-weight:800; padding:10px 14px; border-radius:10px; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <h1>Trazabilidad Bodega de Huevo Palmas</h1>
+      <div class="hero">
+        <div class="emoji">🐔🥚</div>
+        <div>
+          <div class="title">Sistema de Trazabilidad</div>
+          <div class="sub">Bodega de Huevo Palmas</div>
+        </div>
+      </div>
+    </header>
 
-  <div class="card">
-    <h2><span class="emoji">🐣</span> Realizar Empaque</h2>
-    <a class="button" href="./realizar_empaque.html">Ir a Realizar Empaque</a>
-  </div>
+    <div class="grid">
+      <div class="card">
+        <h2><span class="emoji">🥚</span> Registro de materiales</h2>
+        <a class="button" href="./recepcion.html">Ir a Recepción</a>
+      </div>
 
-  <div class="card">
-    <h2><span class="emoji">📅</span> Pedidos</h2>
-    <a class="button" href="./pedidos.html">Ir a Pedidos</a>
-  </div>
+      <div class="card">
+        <h2><span class="emoji">🐣</span> Realizar Empaque</h2>
+        <a class="button" href="./realizar_empaque.html">Ir a Realizar Empaque</a>
+      </div>
 
-  <div class="card">
-    <h2><span class="emoji">📦</span> Inventario</h2>
-    <a class="button" href="./inventario.html">Ir a Inventario</a>
-  </div>
+      <div class="card">
+        <h2><span class="emoji">📅</span> Pedidos</h2>
+        <a class="button" href="./pedidos.html">Ir a Pedidos</a>
+      </div>
 
-  <div class="card">
-    <h2><span class="emoji">🖧</span> Servidor y Respaldo</h2>
-    <div class="row">
-      <div id="serverStatus" class="pill muted">Revisando servidor…</div>
-      <button class="button" onclick="probarServidor()">Probar conexión</button>
-      <button class="button" onclick="migrarAlServidor()">Migrar al servidor</button>
+      <div class="card">
+        <h2><span class="emoji">📦</span> Inventario</h2>
+        <a class="button" href="./inventario.html">Ir a Inventario</a>
+      </div>
     </div>
-    <div class="muted">Sube al servidor todos los datos guardados en este navegador: lotes, consumos de MP y de empaque.</div>
   </div>
-</div>
+
+  <script>
+    // Config de la API en tu servidor interno
+    const API_BASE = "http://PCMAIKOL.INNOVOCR.COM:3000";
+    const API_KEY = "TuClaveLarga_Con_Simbolos123!";
+
+    async function apiGet(path, params = {}) {
+      const url = new URL(API_BASE + path);
+      Object.entries(params).forEach(([k, v]) => v != null && url.searchParams.set(k, v));
+      const res = await fetch(url, { headers: { "x-api-key": API_KEY } });
+      if (!res.ok) throw new Error("API " + res.status);
+      return res.json();
+    }
+    async function apiPost(path, body) {
+      const res = await fetch(API_BASE + path, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": API_KEY },
+        body: JSON.stringify(body)
+      });
+      if (!res.ok) throw new Error("API " + res.status);
+      return res.json();
+    }
+    async function apiDelete(path) {
+      const res = await fetch(API_BASE + path, { method: "DELETE", headers: { "x-api-key": API_KEY } });
+      if (!res.ok) throw new Error("API " + res.status);
+      return res.json();
+    }
+
+    // Endpoints específicos
+    async function loadLotesPF(filtros) { return apiGet("/api/lotesPF", filtros); }
+    async function saveLotePF(pf) { return apiPost("/api/lotesPF", pf); }
+    async function deleteLotePF(id) { return apiDelete(`/api/lotesPF/${encodeURIComponent(id)}`); }
+    async function loadConsMP(pf) { return apiGet("/api/consumosMP", { pf }); }
+    async function addConsMP(r) { return apiPost("/api/consumosMP", r); }
+    async function delConsMP(id) { return apiDelete(`/api/consumosMP/${id}`); }
+    async function loadConsEmp(pf) { return apiGet("/api/consumosEmpaque", { pf }); }
+    async function addConsEmp(r) { return apiPost("/api/consumosEmpaque", r); }
+    async function delConsEmp(id) { return apiDelete(`/api/consumosEmpaque/${id}`); }
+
+    // Migración opcional desde LocalStorage al servidor (puedes llamarla desde la consola si quieres)
+    async function migrarAlServidor() {
+      try {
+        const lotesPF = JSON.parse(localStorage.getItem("lotesPF") || "[]");
+        const consumosMP = JSON.parse(localStorage.getItem("consumosMP") || "[]");
+        const consumosEmpaque = JSON.parse(localStorage.getItem("consumosEmpaque") || "[]");
+        if (!confirm(`Se migrarán ${lotesPF.length} lotes, ${consumosMP.length} consumos MP y ${consumosEmpaque.length} consumos Empaque al servidor. ¿Continuar?`)) return;
+        for (const pf of lotesPF) await saveLotePF(pf);
+        for (const r of consumosMP) await addConsMP(r);
+        for (const r of consumosEmpaque) await addConsEmp(r);
+        alert("Migración completa.");
+      } catch (err) {
+        alert("Error al migrar: " + err.message);
+      }
+    }
+  </script>
+</body>
+</html>
