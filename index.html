@@ -2,36 +2,67 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Trazabilidad — Bodega de Huevo Palmas</title>
+  <title>Trazabilidad Bodega de Huevo Palmas</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: Arial, sans-serif; margin: 24px; background: #f8f9fa; }
-    .container { max-width: 720px; margin: 0 auto; background: white; padding: 32px; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
-    .hero { display:flex; align-items:center; justify-content:center; gap:12px; }
-    .hero .emoji { font-size: 42px; }
-    h1 { font-size: 32px; margin: 6px 0; color: #222; text-align: center; }
-    .subtitle { text-align:center; color:#495057; margin: 6px 0 18px; font-weight: 600; }
-    .links { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
-    a.button { display: inline-block; padding: 16px 20px; background: #0d6efd; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px; text-align: center; }
-    a.button:hover { filter: brightness(0.95); }
-    .tip { margin-top: 28px; padding: 14px; background: #e7f3ff; border-left: 4px solid #0d6efd; border-radius: 6px; color: #0d6efd; font-size: 14px; }
+    :root { --pri:#0d6efd; --sec:#6c757d; --bg:#f6f7fb; --card:#fff; --muted:#657082; }
+    *{box-sizing:border-box}
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: #222; }
+    .shell { max-width: 1100px; margin: 0 auto; padding: 28px 16px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 16px; }
+    h1 { font-size: 22px; margin:0; }
+    .muted { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+    .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; box-shadow: 0 8px 20px rgba(0,0,0,.05); }
+    h2 { font-size: 18px; margin: 0 0 6px; }
+    p { margin: 8px 0 12px; color:#374151; }
+    a.button { display:inline-block; background: var(--pri); color:#fff; text-decoration:none; font-weight:800; padding:10px 14px; border-radius:10px; }
+    a.secondary { background: var(--sec); }
+    ul { margin: 6px 0 0 18px; color:#4b5563; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="hero">
-      <div class="emoji">🥚</div>
-      <h1>Trazabilidad — Bodega de Huevo Palmas</h1>
-      <div class="emoji">🐔</div>
-    </div>
-    <div class="subtitle">Operaciones rápidas con etiquetas y QR</div>
+  <div class="shell">
+    <header>
+      <h1>Trazabilidad Bodega de Huevo Palmas</h1>
+    </header>
 
-    <div class="links">
-      <a class="button" href="./recepcion.html">📝 Registro de materiales (Empaque y MP)</a>
-      <a class="button" href="./realizar_empaque.html">🏭 Realizar Empaque (consumo de lotes)</a>
+    <p class="muted">Sistema ligero para registrar materiales, realizar empaque, consultar pedidos por fecha y ver existencias. Recomendado usar en HTTPS (GitHub Pages) para habilitar la cámara del escáner.</p>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Registro de materiales</h2>
+        <p>Recibe Empaque y Materia Prima. Genera lote de empaque automáticamente con día juliano y etiqueta con QR. Para MP ingresas el lote libremente y puedes imprimir etiqueta con QR.</p>
+        <a class="button" href="./recepcion.html">Ir a Recepción</a>
+      </div>
+
+      <div class="card">
+        <h2>Realizar Empaque</h2>
+        <p>Inicia un lote/pedido final, escanea o ingresa manualmente los lotes a consumir (MP y Empaque) y guarda los consumos con responsable y cliente destino.</p>
+        <a class="button" href="./realizar_empaque.html">Ir a Realizar Empaque</a>
+      </div>
+
+      <div class="card">
+        <h2>Pedidos</h2>
+        <p>Consulta los pedidos por fecha (por ejemplo 2025-08-11) y filtra por ID o cliente. Haz clic en un pedido para ver el detalle de consumos y exportar CSV.</p>
+        <a class="button" href="./pedidos.html">Ir a Pedidos</a>
+      </div>
+
+      <div class="card">
+        <h2>Inventario</h2>
+        <p>Existencias de MP y Empaque calculadas como recepcionado menos consumido. Filtra por lote y rango de fechas y exporta a CSV.</p>
+        <a class="button" href="./inventario.html">Ir a Inventario</a>
+      </div>
     </div>
 
-    <div class="tip"><strong>Tip:</strong> Agrega esta página a Favoritos o al Inicio del móvil para acceso rápido desde planta.</div>
+    <div class="card" style="margin-top:16px">
+      <h2>Tips rápidos</h2>
+      <ul>
+        <li>Para usar la cámara del escáner, abre el sitio en HTTPS (tu GitHub Pages) y permite el acceso a la cámara cuando el navegador lo solicite.</li>
+        <li>Los datos se guardan en el navegador (LocalStorage). Al borrar caché/datos del sitio se perderán a menos que exportes o migres.</li>
+      </ul>
+    </div>
   </div>
 </body>
 </html>
