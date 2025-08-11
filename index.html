@@ -9,59 +9,53 @@
     *{box-sizing:border-box}
     body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: #222; }
     .shell { max-width: 1100px; margin: 0 auto; padding: 28px 16px; }
-    header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 16px; }
-    h1 { font-size: 22px; margin:0; }
-    .muted { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+    header { margin-bottom: 12px; }
+    h1 { font-size: 24px; margin:0 0 10px; }
+    .hero { background: linear-gradient(135deg,#fff7e6,#fde68a); border: 1px solid #f1d48a; padding: 14px; border-radius: 12px; display:flex; align-items:center; gap:12px; margin-bottom: 16px; }
+    .hero .emoji { font-size: 30px; }
+    .hero .title { font-weight: 800; }
+    .hero .sub { color: var(--muted); margin-top: 2px; font-size: 14px; }
     .grid { display:grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
     @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
-    .card { background: var(--card); border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; box-shadow: 0 8px 20px rgba(0,0,0,.05); }
-    h2 { font-size: 18px; margin: 0 0 6px; }
-    p { margin: 8px 0 12px; color:#374151; }
+    .card { background: var(--card); border: 1px solid #e5e7eb; border-radius: 12px; padding: 18px; box-shadow: 0 8px 20px rgba(0,0,0,.05); display:flex; flex-direction:column; gap:12px; }
+    .card h2 { font-size: 18px; margin: 0; display:flex; align-items:center; gap:10px; }
+    .emoji { font-size: 28px; line-height: 1; }
     a.button { display:inline-block; background: var(--pri); color:#fff; text-decoration:none; font-weight:800; padding:10px 14px; border-radius:10px; }
-    a.secondary { background: var(--sec); }
-    ul { margin: 6px 0 0 18px; color:#4b5563; }
   </style>
 </head>
 <body>
   <div class="shell">
     <header>
       <h1>Trazabilidad Bodega de Huevo Palmas</h1>
+      <div class="hero">
+        <div class="emoji">🐔🥚</div>
+        <div>
+          <div class="title">Sistema de Trazabilidad</div>
+          <div class="sub">Bodega de Huevo Palmas</div>
+        </div>
+      </div>
     </header>
-
-    <p class="muted">Sistema ligero para registrar materiales, realizar empaque, consultar pedidos por fecha y ver existencias. Recomendado usar en HTTPS (GitHub Pages) para habilitar la cámara del escáner.</p>
 
     <div class="grid">
       <div class="card">
-        <h2>Registro de materiales</h2>
-        <p>Recibe Empaque y Materia Prima. Genera lote de empaque automáticamente con día juliano y etiqueta con QR. Para MP ingresas el lote libremente y puedes imprimir etiqueta con QR.</p>
+        <h2><span class="emoji">🥚</span> Registro de materiales</h2>
         <a class="button" href="./recepcion.html">Ir a Recepción</a>
       </div>
 
       <div class="card">
-        <h2>Realizar Empaque</h2>
-        <p>Inicia un lote/pedido final, escanea o ingresa manualmente los lotes a consumir (MP y Empaque) y guarda los consumos con responsable y cliente destino.</p>
+        <h2><span class="emoji">🐣</span> Realizar Empaque</h2>
         <a class="button" href="./realizar_empaque.html">Ir a Realizar Empaque</a>
       </div>
 
       <div class="card">
-        <h2>Pedidos</h2>
-        <p>Consulta los pedidos por fecha (por ejemplo 2025-08-11) y filtra por ID o cliente. Haz clic en un pedido para ver el detalle de consumos y exportar CSV.</p>
+        <h2><span class="emoji">📅</span> Pedidos</h2>
         <a class="button" href="./pedidos.html">Ir a Pedidos</a>
       </div>
 
       <div class="card">
-        <h2>Inventario</h2>
-        <p>Existencias de MP y Empaque calculadas como recepcionado menos consumido. Filtra por lote y rango de fechas y exporta a CSV.</p>
+        <h2><span class="emoji">📦</span> Inventario</h2>
         <a class="button" href="./inventario.html">Ir a Inventario</a>
       </div>
-    </div>
-
-    <div class="card" style="margin-top:16px">
-      <h2>Tips rápidos</h2>
-      <ul>
-        <li>Para usar la cámara del escáner, abre el sitio en HTTPS (tu GitHub Pages) y permite el acceso a la cámara cuando el navegador lo solicite.</li>
-        <li>Los datos se guardan en el navegador (LocalStorage). Al borrar caché/datos del sitio se perderán a menos que exportes o migres.</li>
-      </ul>
     </div>
   </div>
 </body>
