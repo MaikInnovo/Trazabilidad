@@ -1,106 +1,354 @@
-<div class="card">
-  <div class="row">
-    <div class="col-12">
-      <label>Tipo de recepción</label>
-      <select id="tipoRecep">
-        <option value="EMP">Empaque</option>
-        <option value="MP">Materia Prima (Huevos)</option>
-      </select>
-    </div>
-  </div>
-</div>
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Registro de materiales (Empaque y MP)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Librería QR estable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <style>
+    :root { --pri:#0d6efd; --sec:#6c757d; --ok:#0a7f2e; --err:#b71c1c; --bg:#f6f7fb; --card:#fff; --muted:#657082; }
+    *{box-sizing:border-box}
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: #222; }
+    .shell { max-width: 1100px; margin: 0 auto; padding: 28px 16px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 12px; }
+    header h1 { font-size: 22px; margin:0; }
+    a.back { color: var(--pri); text-decoration:none; font-weight:700; }
+    .cards { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    @media (max-width: 980px) { .cards { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; box-shadow: 0 8px 20px rgba(0,0,0,.05); }
+    h2 { font-size:18px; margin: 0 0 6px; }
+    .muted { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+    .row { display:grid; grid-template-columns: repeat(12, 1fr); gap: 10px; }
+    .col-12{grid-column: span 12}.col-6{grid-column: span 6}.col-4{grid-column: span 4}.col-3{grid-column: span 3}
+    label { font-weight: 700; font-size: 13px; display:block; margin: 8px 0 6px; }
+    input, select { width: 100%; padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 10px; background:#fff; }
+    .help { font-size:12px; color: var(--muted); margin-top: 2px; }
+    .btns { display:flex; gap:10px; margin-top: 12px; }
+    button { padding: 10px 14px; border: 0; border-radius: 10px; background: var(--pri); color:#fff; font-weight: 800; cursor: pointer; }
+    button.secondary { background: var(--sec); }
+    .status { margin-top: 8px; font-weight:700; }
+    .ok { color: var(--ok); } .err { color: var(--err); }
 
-<div class="card" id="formEmp">
-  <h3>Empaque</h3>
-  <div class="row">
-    <div class="col-6">
-      <label>Lote empaque (0114525 o 01-145-25)</label>
-      <input id="emp_lote" placeholder="0114525">
-      <div class="hint">Formato: Tipo(2) + Juliano(3) + Año(2)</div>
-    </div>
-    <div class="col-6">
-      <label>Descripción material</label>
-      <input id="emp_desc" placeholder="Se autocompleta por el tipo" readonly>
-    </div>
-    <div class="col-3">
-      <label>Proveedor</label>
-      <input id="emp_prov" placeholder="Proveedor S.A.">
-    </div>
-    <div class="col-3">
-      <label>Cantidad</label>
-      <input id="emp_qty" type="number" step="0.01" placeholder="100">
-    </div>
-    <div class="col-3">
-      <label>Unidad</label>
-      <input id="emp_unit" placeholder="pzas, cajas, etc.">
-    </div>
-    <div class="col-3">
-      <label>Ubicación</label>
-      <input id="emp_loc" placeholder="Almacén A1">
-    </div>
-    <div class="col-12">
-      <div id="emp_val" class="hint"></div>
-    </div>
-  </div>
-  <div class="btns">
-    <button id="emp_guardar">Guardar recepción</button>
-    <button class="secondary" id="emp_imprimir">Imprimir etiqueta</button>
-  </div>
-</div>
+    /* Etiqueta */
+    .label {
+      width: 90mm; height: 50mm; border: 1px solid #000; padding: 6mm; box-sizing: border-box;
+      display: inline-flex; justify-content: space-between; align-items: flex-start; background:#fff;
+    }
+    .text { font-size: 12pt; line-height: 1.2; max-width: 60%; }
+    .title { font-size: 14pt; font-weight: bold; margin-bottom: 6px; }
+    .small { font-size: 10pt; color: #333; }
+    .qr { width: 35mm; height: 35mm; }
 
-<div class="card" id="formMP" style="display:none">
-  <h3>Materia Prima (Huevos)</h3>
-  <div class="row">
-    <div class="col-4">
-      <label>Lote LP (LPddmmaa)</label>
-      <input id="mp_lote" placeholder="LP110825">
-      <div class="hint">Ejemplo: LP110825 = 11/08/2025</div>
-    </div>
-    <div class="col-4">
-      <label>Cartones</label>
-      <input id="mp_cart" type="number" step="1" placeholder="100">
-    </div>
-    <div class="col-4">
-      <label>Peso total (kg)</label>
-      <input id="mp_peso" type="number" step="0.01" placeholder="1200">
-    </div>
-    <div class="col-4">
-      <label>Tara (kg) opcional</label>
-      <input id="mp_tara" type="number" step="0.01" placeholder="10">
-    </div>
-    <div class="col-4">
-      <label>Ubicación</label>
-      <input id="mp_loc" placeholder="Frigorífico 1">
-    </div>
-    <div class="col-12">
-      <div id="mp_val" class="hint"></div>
-    </div>
-  </div>
-  <div class="btns">
-    <button id="mp_guardar">Guardar recepción</button>
-    <button class="secondary" id="mp_imprimir">Imprimir etiqueta</button>
-  </div>
-</div>
+    @media print {
+      body * { visibility: hidden; }
+      #printArea, #printArea * { visibility: visible; }
+      #printArea { position: absolute; left: 0; top: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <h1>Registro de materiales</h1>
+      <a class="back" href="./index.html">← Volver al inicio</a>
+    </header>
 
-<div class="card">
-  <h3>Impresión</h3>
-  <div id="printArea">
-    <div class="label" id="labelEmp" style="display:none">
-      <div class="text">
-        <div class="title" id="emp_mat_title">Material: -</div>
-        <div id="emp_lote_show">Lote: -</div>
-        <div class="small" id="emp_origen">Origen (juliano): -</div>
+    <div class="cards">
+      <!-- Empaque -->
+      <div class="card">
+        <h2>Empaque</h2>
+        <p class="muted">Selecciona tipo y fecha; el sistema calcula el día juliano y genera el lote automáticamente.</p>
+        <div class="row">
+          <div class="col-6">
+            <label>Tipo de material</label>
+            <select id="emp_tipo">
+              <option value="01">01 - Cartones de huevo</option>
+              <option value="02">02 - Plástico de paletizar</option>
+              <option value="03">03 - Corrugado Mayca</option>
+              <option value="04">04 - Corrugado Belca Logo</option>
+              <option value="05">05 - Corrugado Belca Lisa</option>
+              <option value="06">06 - Bandeja 30 huevos Azul</option>
+              <option value="07">07 - Bandeja 30 huevos Verde</option>
+              <option value="08">08 - Bandeja 4x3 huevos</option>
+              <option value="09">09 - Etiquetas</option>
+              <option value="10">10 - Cintillos</option>
+              <option value="11">11 - Plástico de Alimentos</option>
+              <option value="12">12 - Tapas de bandejas</option>
+              <option value="13">13 - Porta huevos plástica1</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label>Fecha de origen</label>
+            <input type="date" id="emp_fecha">
+            <div class="help">Se usará para calcular el día juliano y el año.</div>
+          </div>
+
+          <div class="col-4">
+            <label>Lote generado (compacto)</label>
+            <input id="emp_lote" readonly placeholder="p. ej. 0114525">
+          </div>
+          <div class="col-4">
+            <label>Día juliano</label>
+            <input id="emp_jul" readonly>
+          </div>
+          <div class="col-4">
+            <label>Año (2 dígitos)</label>
+            <input id="emp_aa" readonly>
+          </div>
+
+          <div class="col-4">
+            <label>Proveedor</label>
+            <input id="emp_prov" placeholder="Proveedor S.A.">
+          </div>
+          <div class="col-4">
+            <label>Cantidad</label>
+            <input id="emp_qty" type="number" step="0.01" placeholder="100">
+          </div>
+          <div class="col-4">
+            <label>Unidad</label>
+            <input id="emp_unit" placeholder="pzas, cajas...">
+          </div>
+          <div class="col-12">
+            <label>Ubicación</label>
+            <input id="emp_loc" placeholder="Almacén A1">
+          </div>
+          <div class="col-12">
+            <div id="emp_status" class="status"></div>
+          </div>
+        </div>
+        <div class="btns">
+          <button id="emp_guardar">Guardar</button>
+          <button class="secondary" id="emp_imprimir">Imprimir etiqueta</button>
+        </div>
       </div>
-      <div class="qr" id="emp_qr"></div>
+
+      <!-- MP -->
+      <div class="card">
+        <h2>Materia Prima (Huevos)</h2>
+        <p class="muted">Escribe el lote LP o selecciona la fecha; el sistema sincroniza ambos.</p>
+        <div class="row">
+          <div class="col-6">
+            <label>Lote LP</label>
+            <input id="mp_lote" placeholder="LP110825">
+            <div class="help">Formato LPddmmaa</div>
+          </div>
+          <div class="col-6">
+            <label>Fecha (dd/mm/aa)</label>
+            <input type="date" id="mp_fecha">
+          </div>
+          <div class="col-4">
+            <label>Cartones</label>
+            <input id="mp_cart" type="number" step="1" placeholder="100">
+          </div>
+          <div class="col-4">
+            <label>Peso total (kg)</label>
+            <input id="mp_peso" type="number" step="0.01" placeholder="1200">
+          </div>
+          <div class="col-4">
+            <label>Tara (kg) opcional</label>
+            <input id="mp_tara" type="number" step="0.01" placeholder="10">
+          </div>
+          <div class="col-12">
+            <label>Ubicación</label>
+            <input id="mp_loc" placeholder="Frigorífico 1">
+          </div>
+          <div class="col-12">
+            <div id="mp_status" class="status"></div>
+          </div>
+        </div>
+        <div class="btns">
+          <button id="mp_guardar">Guardar</button>
+          <button class="secondary" id="mp_imprimir">Imprimir etiqueta</button>
+        </div>
+      </div>
     </div>
 
-    <div class="label" id="labelMP" style="display:none">
-      <div class="text">
-        <div class="title">MP: Huevo</div>
-        <div id="mp_lote_show">Lote: -</div>
-        <div class="small" id="mp_fecha_show">Fecha: -</div>
+    <!-- Vista previa e impresión -->
+    <div class="card" style="margin-top:16px">
+      <h2>Vista previa de etiqueta</h2>
+      <p class="muted">Se actualiza automáticamente cuando completas los campos.</p>
+      <div id="printArea">
+        <div class="label" id="labelEmp" style="display:none">
+          <div class="text">
+            <div class="title" id="emp_mat_title">Material: -</div>
+            <div id="emp_lote_show">Lote: -</div>
+            <div class="small" id="emp_origen">Origen (juliano): -</div>
+          </div>
+          <div class="qr" id="emp_qr"></div>
+        </div>
+
+        <div class="label" id="labelMP" style="display:none">
+          <div class="text">
+            <div class="title">MP: Huevo</div>
+            <div id="mp_lote_show">Lote: -</div>
+            <div class="small" id="mp_fecha_show">Fecha: -</div>
+          </div>
+          <div class="qr" id="mp_qr"></div>
+        </div>
       </div>
-      <div class="qr" id="mp_qr"></div>
     </div>
   </div>
-</div>
+
+  <script>
+    // Catálogo
+    const CAT = {
+      "01": "Cartones de huevo",
+      "02": "Plástico de paletizar",
+      "03": "Corrugado Mayca",
+      "04": "Corrugado Belca Logo",
+      "05": "Corrugado Belca Lisa",
+      "06": "Bandeja 30 huevos Azul",
+      "07": "Bandeja 30 huevos Verde",
+      "08": "Bandeja 4x3 huevos",
+      "09": "Etiquetas",
+      "10": "Cintillos",
+      "11": "Plástico de Alimentos",
+      "12": "Tapas de bandejas",
+      "13": "Porta huevos plástica1",
+    };
+    const $ = s => document.querySelector(s);
+
+    // Utilidades
+    function dayOfYear(d) {
+      const start = new Date(d.getFullYear(),0,0);
+      const diff = d - start;
+      return Math.floor(diff / 86400000);
+    }
+    function pad(n, len=2){ return String(n).padStart(len,'0'); }
+    function saveLS(key, item, pkField) {
+      const a = JSON.parse(localStorage.getItem(key) || "[]");
+      const i = a.findIndex(x => x[pkField] === item[pkField]);
+      if (i >= 0) a[i] = item; else a.push(item);
+      localStorage.setItem(key, JSON.stringify(a));
+    }
+
+    // Empaque: calcular lote al cambiar tipo/fecha
+    function refreshEmpaque() {
+      const tipo = $("#emp_tipo").value;
+      const desc = CAT[tipo];
+      const fstr = $("#emp_fecha").value;
+      if (!fstr) { // limpiar preview
+        $("#emp_lote").value = ""; $("#emp_jul").value=""; $("#emp_aa").value="";
+        $("#labelEmp").style.display = "none";
+        return;
+      }
+      const d = new Date(fstr + "T00:00:00");
+      const jul = dayOfYear(d);               // 1..366
+      const aa = String(d.getFullYear()).slice(2); // "25"
+      const lote = `${tipo}${pad(jul,3)}${aa}`;
+      $("#emp_lote").value = lote;
+      $("#emp_jul").value = pad(jul,3);
+      $("#emp_aa").value = aa;
+
+      // Render etiqueta y QR
+      $("#labelMP").style.display = "none";
+      $("#labelEmp").style.display = "";
+      $("#emp_mat_title").textContent = `Material: ${desc} (${tipo})`;
+      $("#emp_lote_show").textContent = `Lote: ${lote}`;
+      $("#emp_origen").textContent = `Origen (juliano): ${pad(jul,3)}/20${aa}`;
+      const payload = `(10)${lote}(91)${tipo}|${desc}`;
+      $("#emp_qr").innerHTML = "";
+      new QRCode($("#emp_qr"), { text: payload, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+    }
+    $("#emp_tipo").addEventListener("change", refreshEmpaque);
+    $("#emp_fecha").addEventListener("change", refreshEmpaque);
+
+    $("#emp_guardar").addEventListener("click", () => {
+      const tipo = $("#emp_tipo").value;
+      const desc = CAT[tipo];
+      const fstr = $("#emp_fecha").value;
+      if (!fstr) { $("#emp_status").innerHTML = `<span class="err">Selecciona una fecha</span>`; return; }
+      const d = new Date(fstr + "T00:00:00");
+      const jul = pad(dayOfYear(d),3);
+      const aa = String(d.getFullYear()).slice(2);
+      const lote = `${tipo}${jul}${aa}`;
+      const item = {
+        id_compacto: lote,
+        id_canonico: `${tipo}-${jul}-${aa}`,
+        tipo, descripcion_tipo: desc,
+        juliano: jul, aa, fecha_aprox: `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`,
+        proveedor: $("#emp_prov").value || null,
+        cantidad: parseFloat($("#emp_qty").value || "0"),
+        unidad: $("#emp_unit").value || null,
+        ubicacion: $("#emp_loc").value || null,
+        ts: new Date().toISOString(), estado: "liberado"
+      };
+      saveLS("lotesEmpaque", item, "id_compacto");
+      $("#emp_status").innerHTML = `<span class="ok">Guardado</span> Lote ${lote} — ${desc}`;
+    });
+
+    $("#emp_imprimir").addEventListener("click", () => {
+      if (!$("#emp_lote").value) { $("#emp_status").innerHTML = `<span class="err">Completa tipo y fecha</span>`; return; }
+      window.print();
+    });
+
+    // MP: sincronizar lote y fecha
+    function refreshMPFromFecha() {
+      const fstr = $("#mp_fecha").value;
+      if (!fstr) { $("#labelMP").style.display = "none"; return; }
+      const d = new Date(fstr + "T00:00:00");
+      const dd = pad(d.getDate());
+      const mm = pad(d.getMonth()+1);
+      const aa = String(d.getFullYear()).slice(2);
+      $("#mp_lote").value = `LP${dd}${mm}${aa}`;
+      renderMP(dd, mm, aa);
+    }
+    function refreshMPFromLote() {
+      const s = ($("#mp_lote").value || "").trim().toUpperCase();
+      const m = s.match(/^LP[- ]?(?<dd>\d{2})[- ]?(?<mm>\d{2})[- ]?(?<aa>\d{2})$/);
+      if (!m) { $("#mp_status").innerHTML = `<span class="err">Formato inválido. Use LPddmmaa</span>`; $("#labelMP").style.display="none"; return; }
+      const yy = 2000 + parseInt(m.groups.aa,10);
+      const iso = `${yy}-${m.groups.mm}-${m.groups.dd}`;
+      $("#mp_fecha").value = iso;
+      renderMP(m.groups.dd, m.groups.mm, m.groups.aa);
+    }
+    function renderMP(dd, mm, aa) {
+      const fechaISO = `20${aa}-${mm}-${dd}`;
+      const loteLP = `LP${dd}${mm}${aa}`;
+      $("#labelEmp").style.display = "none";
+      $("#labelMP").style.display = "";
+      $("#mp_lote_show").textContent = `Lote: LP-${dd}-${mm}-${aa}`;
+      $("#mp_fecha_show").textContent = `Fecha: ${fechaISO}`;
+      const payload = `(10)${loteLP}(11)${aa}${mm}${dd}(91)Huevo`;
+      $("#mp_qr").innerHTML = "";
+      new QRCode($("#mp_qr"), { text: payload, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+    }
+    $("#mp_fecha").addEventListener("change", refreshMPFromFecha);
+    $("#mp_lote").addEventListener("input", () => { if ($("#mp_lote").value.length >= 4) refreshMPFromLote(); });
+
+    $("#mp_guardar").addEventListener("click", () => {
+      const s = ($("#mp_lote").value || "").trim().toUpperCase();
+      const m = s.match(/^LP[- ]?(?<dd>\d{2})[- ]?(?<mm>\d{2})[- ]?(?<aa>\d{2})$/);
+      if (!m) { $("#mp_status").innerHTML = `<span class="err">Formato inválido. Use LPddmmaa</span>`; return; }
+      const yy = 2000 + parseInt(m.groups.aa,10);
+      const fecha = `${yy}-${m.groups.mm}-${m.groups.dd}`;
+      const cart = parseInt($("#mp_cart").value || "0", 10);
+      const peso = parseFloat($("#mp_peso").value || "0");
+      const tara = parseFloat($("#mp_tara").value || "0");
+      const neto = Math.max(0,(peso||0)-(tara||0));
+      const item = {
+        lote_lp: `LP${m.groups.dd}${m.groups.mm}${m.groups.aa}`,
+        fecha, cartones: cart, peso_total_kg: peso||0, tara_kg: tara||0, neto_kg: neto,
+        ubicacion: $("#mp_loc").value || null, ts: new Date().toISOString(), estado:"liberado"
+      };
+      saveLS("lotesMP", item, "lote_lp");
+      $("#mp_status").innerHTML = `<span class="ok">Guardado</span> ${item.lote_lp} — Cartones: ${item.cartones} — Neto: ${item.neto_kg} kg`;
+      renderMP(m.groups.dd, m.groups.mm, m.groups.aa);
+    });
+
+    $("#mp_imprimir").addEventListener("click", () => {
+      if (!$("#mp_lote").value) { $("#mp_status").innerHTML = `<span class="err">Completa lote o fecha</span>`; return; }
+      window.print();
+    });
+
+    // Inicial: set hoy para empaque y mp
+    document.addEventListener("DOMContentLoaded", () => {
+      const today = new Date();
+      const iso = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+      $("#emp_fecha").value = iso; refreshEmpaque();
+      $("#mp_fecha").value = iso; refreshMPFromFecha();
+    });
+  </script>
+</body>
+</html>
