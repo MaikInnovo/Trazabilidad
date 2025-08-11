@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <title>Registro de materiales (Empaque y MP)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- Librería QR estable -->
+  <!-- Librería QR -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
   <style>
     :root { --pri:#0d6efd; --sec:#6c757d; --ok:#0a7f2e; --err:#b71c1c; --bg:#f6f7fb; --card:#fff; --muted:#657082; }
@@ -24,7 +24,7 @@
     label { font-weight: 700; font-size: 13px; display:block; margin: 8px 0 6px; }
     input, select { width: 100%; padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 10px; background:#fff; }
     .help { font-size:12px; color: var(--muted); margin-top: 2px; }
-    .btns { display:flex; gap:10px; margin-top: 12px; }
+    .btns { display:flex; gap:10px; margin-top: 12px; flex-wrap:wrap }
     button { padding: 10px 14px; border: 0; border-radius: 10px; background: var(--pri); color:#fff; font-weight: 800; cursor: pointer; }
     button.secondary { background: var(--sec); }
     .status { margin-top: 8px; font-weight:700; }
@@ -123,18 +123,18 @@
         </div>
       </div>
 
-      <!-- MP -->
+      <!-- MP genérico (sin LP) -->
       <div class="card">
         <h2>Materia Prima (Huevos)</h2>
-        <p class="muted">Escribe el lote LP o selecciona la fecha; el sistema sincroniza ambos.</p>
+        <p class="muted">Escribe el lote de MP y, si deseas, selecciona la fecha. El QR y la etiqueta se actualizan.</p>
         <div class="row">
           <div class="col-6">
-            <label>Lote LP</label>
-            <input id="mp_lote" placeholder="LP110825">
-            <div class="help">Formato LPddmmaa</div>
+            <label>Lote MP</label>
+            <input id="mp_lote" placeholder="ABC-123-XYZ">
+            <div class="help">Acepta letras, números y guiones (2 a 30 caracteres).</div>
           </div>
           <div class="col-6">
-            <label>Fecha (dd/mm/aa)</label>
+            <label>Fecha (opcional)</label>
             <input type="date" id="mp_fecha">
           </div>
           <div class="col-4">
@@ -191,7 +191,7 @@
   </div>
 
   <script>
-    // Catálogo
+    // Catálogo Empaque
     const CAT = {
       "01": "Cartones de huevo",
       "02": "Plástico de paletizar",
@@ -209,7 +209,7 @@
     };
     const $ = s => document.querySelector(s);
 
-    // Utilidades
+    // Utils
     function dayOfYear(d) {
       const start = new Date(d.getFullYear(),0,0);
       const diff = d - start;
@@ -222,20 +222,23 @@
       if (i >= 0) a[i] = item; else a.push(item);
       localStorage.setItem(key, JSON.stringify(a));
     }
+    function isLote(val) {
+      return /^[A-Z0-9-]{2,30}$/i.test((val||"").trim());
+    }
 
     // Empaque: calcular lote al cambiar tipo/fecha
     function refreshEmpaque() {
       const tipo = $("#emp_tipo").value;
       const desc = CAT[tipo];
       const fstr = $("#emp_fecha").value;
-      if (!fstr) { // limpiar preview
+      if (!fstr) {
         $("#emp_lote").value = ""; $("#emp_jul").value=""; $("#emp_aa").value="";
         $("#labelEmp").style.display = "none";
         return;
       }
       const d = new Date(fstr + "T00:00:00");
-      const jul = dayOfYear(d);               // 1..366
-      const aa = String(d.getFullYear()).slice(2); // "25"
+      const jul = dayOfYear(d);
+      const aa = String(d.getFullYear()).slice(2);
       const lote = `${tipo}${pad(jul,3)}${aa}`;
       $("#emp_lote").value = lote;
       $("#emp_jul").value = pad(jul,3);
@@ -274,81 +277,9 @@
         ubicacion: $("#emp_loc").value || null,
         ts: new Date().toISOString(), estado: "liberado"
       };
-      saveLS("lotesEmpaque", item, "id_compacto");
-      $("#emp_status").innerHTML = `<span class="ok">Guardado</span> Lote ${lote} — ${desc}`;
+      saveLS("lotesEmpaque", item, "id_compacto"); // INVENTARIO Empaque
+      $("#emp_status").innerHTML = `<span class="ok">Guardado</span> Lote ${lote} — ${desc}. Ya está en Inventario.`;
     });
 
     $("#emp_imprimir").addEventListener("click", () => {
-      if (!$("#emp_lote").value) { $("#emp_status").innerHTML = `<span class="err">Completa tipo y fecha</span>`; return; }
-      window.print();
-    });
-
-    // MP: sincronizar lote y fecha
-    function refreshMPFromFecha() {
-      const fstr = $("#mp_fecha").value;
-      if (!fstr) { $("#labelMP").style.display = "none"; return; }
-      const d = new Date(fstr + "T00:00:00");
-      const dd = pad(d.getDate());
-      const mm = pad(d.getMonth()+1);
-      const aa = String(d.getFullYear()).slice(2);
-      $("#mp_lote").value = `LP${dd}${mm}${aa}`;
-      renderMP(dd, mm, aa);
-    }
-    function refreshMPFromLote() {
-      const s = ($("#mp_lote").value || "").trim().toUpperCase();
-      const m = s.match(/^LP[- ]?(?<dd>\d{2})[- ]?(?<mm>\d{2})[- ]?(?<aa>\d{2})$/);
-      if (!m) { $("#mp_status").innerHTML = `<span class="err">Formato inválido. Use LPddmmaa</span>`; $("#labelMP").style.display="none"; return; }
-      const yy = 2000 + parseInt(m.groups.aa,10);
-      const iso = `${yy}-${m.groups.mm}-${m.groups.dd}`;
-      $("#mp_fecha").value = iso;
-      renderMP(m.groups.dd, m.groups.mm, m.groups.aa);
-    }
-    function renderMP(dd, mm, aa) {
-      const fechaISO = `20${aa}-${mm}-${dd}`;
-      const loteLP = `LP${dd}${mm}${aa}`;
-      $("#labelEmp").style.display = "none";
-      $("#labelMP").style.display = "";
-      $("#mp_lote_show").textContent = `Lote: LP-${dd}-${mm}-${aa}`;
-      $("#mp_fecha_show").textContent = `Fecha: ${fechaISO}`;
-      const payload = `(10)${loteLP}(11)${aa}${mm}${dd}(91)Huevo`;
-      $("#mp_qr").innerHTML = "";
-      new QRCode($("#mp_qr"), { text: payload, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
-    }
-    $("#mp_fecha").addEventListener("change", refreshMPFromFecha);
-    $("#mp_lote").addEventListener("input", () => { if ($("#mp_lote").value.length >= 4) refreshMPFromLote(); });
-
-    $("#mp_guardar").addEventListener("click", () => {
-      const s = ($("#mp_lote").value || "").trim().toUpperCase();
-      const m = s.match(/^LP[- ]?(?<dd>\d{2})[- ]?(?<mm>\d{2})[- ]?(?<aa>\d{2})$/);
-      if (!m) { $("#mp_status").innerHTML = `<span class="err">Formato inválido. Use LPddmmaa</span>`; return; }
-      const yy = 2000 + parseInt(m.groups.aa,10);
-      const fecha = `${yy}-${m.groups.mm}-${m.groups.dd}`;
-      const cart = parseInt($("#mp_cart").value || "0", 10);
-      const peso = parseFloat($("#mp_peso").value || "0");
-      const tara = parseFloat($("#mp_tara").value || "0");
-      const neto = Math.max(0,(peso||0)-(tara||0));
-      const item = {
-        lote_lp: `LP${m.groups.dd}${m.groups.mm}${m.groups.aa}`,
-        fecha, cartones: cart, peso_total_kg: peso||0, tara_kg: tara||0, neto_kg: neto,
-        ubicacion: $("#mp_loc").value || null, ts: new Date().toISOString(), estado:"liberado"
-      };
-      saveLS("lotesMP", item, "lote_lp");
-      $("#mp_status").innerHTML = `<span class="ok">Guardado</span> ${item.lote_lp} — Cartones: ${item.cartones} — Neto: ${item.neto_kg} kg`;
-      renderMP(m.groups.dd, m.groups.mm, m.groups.aa);
-    });
-
-    $("#mp_imprimir").addEventListener("click", () => {
-      if (!$("#mp_lote").value) { $("#mp_status").innerHTML = `<span class="err">Completa lote o fecha</span>`; return; }
-      window.print();
-    });
-
-    // Inicial: set hoy para empaque y mp
-    document.addEventListener("DOMContentLoaded", () => {
-      const today = new Date();
-      const iso = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
-      $("#emp_fecha").value = iso; refreshEmpaque();
-      $("#mp_fecha").value = iso; refreshMPFromFecha();
-    });
-  </script>
-</body>
-</html>
+      i
