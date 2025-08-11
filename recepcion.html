@@ -191,6 +191,12 @@
   </div>
 
   <script>
+    // Config API backend
+    const API_BASE = "http://PCMAIKOL.INNOVOCR.COM:3000";
+    const API_KEY = "TuClaveLarga_Con_Simbolos123!";
+  </script>
+
+  <script>
     // Catálogo Empaque
     const CAT = {
       "01": "Cartones de huevo",
@@ -307,12 +313,18 @@
         ubicacion: $("#emp_loc").value || null,
         ts: new Date().toISOString(), estado: "liberado"
       };
-      const resEmp = saveLS("lotesEmpaque", item, "id_compacto"); // INVENTARIO Empaque
-      if (!resEmp.ok) {
-        $("#emp_status").innerHTML = `<span class="err">No se pudo guardar</span> ${resEmp.error || ''}`;
-      } else {
-        $("#emp_status").innerHTML = `<span class=\"ok\">Guardado</span> Lote ${lote} — ${desc}. Ya está en Inventario.`;
-      }
+      (async () => {
+        try {
+          await fetch(`${API_BASE}/api/inventarioEmpaque`, {
+            method: "POST",
+            headers: { "Content-Type":"application/json", "x-api-key": API_KEY },
+            body: JSON.stringify(item)
+          });
+          $("#emp_status").innerHTML = `<span class="ok">Guardado</span> Lote ${lote} — ${desc}. Ya está en Inventario (Servidor).`;
+        } catch (err) {
+          $("#emp_status").innerHTML = `<span class="err">Error guardando en servidor:</span> ${err.message}`;
+        }
+      })();
     });
 
     $("#emp_imprimir").addEventListener("click", () => {
@@ -361,9 +373,19 @@
         cartones: cart, peso_total_kg: peso||0, tara_kg: tara||0, neto_kg: neto,
         ubicacion: $("#mp_loc").value || null, ts: new Date().toISOString(), estado:"liberado"
       };
-      saveLS("lotesMP", item, "id_lote_mp"); // INVENTARIO MP
-      $("#mp_status").innerHTML = `<span class="ok">Guardado</span> ${item.id_lote_mp} — Cartones: ${item.cartones} — Neto: ${item.neto_kg} kg. Ya está en Inventario.`;
-      updateMPPreview();
+      (async () => {
+        try {
+          await fetch(`${API_BASE}/api/inventarioMP`, {
+            method: "POST",
+            headers: { "Content-Type":"application/json", "x-api-key": API_KEY },
+            body: JSON.stringify(item)
+          });
+          $("#mp_status").innerHTML = `<span class="ok">Guardado</span> ${item.id_lote_mp} — Cartones: ${item.cartones} — Neto: ${item.neto_kg} kg. Inventario (Servidor).`;
+          updateMPPreview();
+        } catch (err) {
+          $("#mp_status").innerHTML = `<span class="err">Error guardando en servidor:</span> ${err.message}`;
+        }
+      })();
     });
 
     $("#mp_imprimir").addEventListener("click", () => {
@@ -381,4 +403,4 @@
     });
   </script>
 </body>
-</html>
+</html> (Recepcion)
