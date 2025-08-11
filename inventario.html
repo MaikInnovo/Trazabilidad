@@ -81,7 +81,7 @@
         <div class="row">
           <div class="col-4">
             <label>Lote contiene</label>
-            <input id="emp_f_lote" placeholder="Ej. 0114525 o 01-145-25">
+            <input id="emp_f_lote" placeholder="Ej. 02525, 14525">
           </div>
           <div class="col-4">
             <label>Fecha desde</label>
@@ -149,12 +149,31 @@
   </div>
 
   <script>
-    // Config del backend
-    const API_BASE = "http://localhost:3000"; // Puedes cambiar a "http://PCMAIKOL.INNOVOCR.COM:3000"
-    const API_KEY  = "TuClaveLarga_Con_Simbolos123!";
+    // Supabase REST config
+    const SUPA_URL = "https://knkuchumfbertdkgjcqg.supabase.co";
+    const SUPA_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtua3VjaHVtZmJlcnRka2dqY3FnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ5NDg4MDgsImV4cCI6MjA3MDUyNDgwOH0.Fh08k3ArtSVPHY4_XeqYuszhl42GJjni9kIMXfPzAKk";
+
+    async function supaFetch(table, method, body, query = "") {
+      const url = `${SUPA_URL}/rest/v1/${table}${query}`;
+      const headers = {
+        apikey: SUPA_KEY,
+        Authorization: `Bearer ${SUPA_KEY}`,
+        "Content-Type": "application/json"
+      };
+      if (method === "POST" || method === "PATCH") {
+        headers["Prefer"] = "resolution=merge-duplicates";
+      }
+      const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        throw new Error(`HTTP ${res.status}: ${txt || res.statusText}`);
+      }
+      try { return await res.json(); } catch { return {}; }
+    }
 
     // Helpers
     const $ = s => document.querySelector(s);
+    function readLS(key) { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } }
     function toCSV(rows) {
       if (!rows || rows.length === 0) return "";
       const headers = Object.keys(rows[0]);
@@ -172,20 +191,11 @@
       a.href = URL.createObjectURL(new Blob([text], {type:"text/csv;charset=utf-8;"}));
       a.download = filename; a.click(); URL.revokeObjectURL(a.href);
     }
-    async function fetchJSON(url, opts={}) {
-      const res = await fetch(url, {
-        ...opts,
-        headers: { "x-api-key": API_KEY, ...(opts.headers || {}) }
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return await res.json();
-    }
 
     // Datos en memoria
     let lotesMP = [];
     let lotesEmp = [];
     // Consumos LOS TOMAMOS DE LOCALSTORAGE POR AHORA
-    function readLS(key) { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } }
     let consMP = [];
     let consEmp = [];
 
@@ -200,6 +210,7 @@
       $("#filtros_emp").classList.toggle("hidden", mpActive);
       $("#tabla_mp_wrap").classList.toggle("hidden", !mpActive);
       $("#tabla_emp_wrap").classList.toggle("hidden", mpActive);
+      if (mpActive) { aplicarFiltrosMP(); } else { aplicarFiltrosEmp(); }
     }
 
     // Render MP
@@ -346,18 +357,17 @@
       $("#emp_f_lote").value = ""; $("#emp_f_desde").value = ""; $("#emp_f_hasta").value = ""; aplicarFiltrosEmp();
     });
 
-    // Eliminar filas (ahora contra el servidor)
+    // Eliminar filas (contra Supabase)
     document.addEventListener("click", async (ev) => {
       const btnMP = ev.target.closest("[data-del-mp]");
       if (btnMP) {
         const id = btnMP.getAttribute("data-del-mp");
         if (!confirm(`Eliminar lote MP ${id}?`)) return;
         try {
-          await fetchJSON(`${API_BASE}/api/inventarioMP/${encodeURIComponent(id)}`, { method: "DELETE" });
-          // refrescamos la lista desde el servidor
+          await supaFetch("inventario_mp", "DELETE", null, `?id_lote_mp=eq.${encodeURIComponent(id)}`);
           await loadData(); aplicarFiltrosMP();
         } catch (e) {
-          alert(`No se pudo eliminar en el servidor: ${e.message}`);
+          alert(`No se pudo eliminar en Supabase: ${e.message}`);
         }
         return;
       }
@@ -366,26 +376,26 @@
         const id = btnEmp.getAttribute("data-del-emp");
         if (!confirm(`Eliminar lote de empaque ${id}?`)) return;
         try {
-          await fetchJSON(`${API_BASE}/api/inventarioEmpaque/${encodeURIComponent(id)}`, { method: "DELETE" });
+          await supaFetch("inventario_empaque", "DELETE", null, `?id_compacto=eq.${encodeURIComponent(id)}`);
           await loadData(); aplicarFiltrosEmp();
         } catch (e) {
-          alert(`No se pudo eliminar en el servidor: ${e.message}`);
+          alert(`No se pudo eliminar en Supabase: ${e.message}`);
         }
         return;
       }
     });
 
-    // Carga inicial desde servidor para inventarios; consumos se leen local por ahora
+    // Carga inicial desde Supabase para inventarios; consumos se leen local por ahora
     async function loadData() {
       try {
         const [mp, emp] = await Promise.all([
-          fetchJSON(`${API_BASE}/api/inventarioMP`),
-          fetchJSON(`${API_BASE}/api/inventarioEmpaque`)
+          supaFetch("inventario_mp", "GET", null, "?select=*&order=ts.desc"),
+          supaFetch("inventario_empaque", "GET", null, "?select=*&order=ts.desc")
         ]);
         lotesMP = Array.isArray(mp) ? mp : [];
         lotesEmp = Array.isArray(emp) ? emp : [];
       } catch (e) {
-        alert(`Error cargando inventario del servidor: ${e.message}`);
+        alert(`Error cargando inventario de Supabase: ${e.message}`);
         lotesMP = []; lotesEmp = [];
       }
       consMP = readLS("consumosMP");
