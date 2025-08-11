@@ -2,90 +2,41 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <title>Trazabilidad - Etiquetas</title>
+  <title>Trazabilidad - Bodega de Huevo Palmas</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { 
-      font-family: Arial, sans-serif; 
-      margin: 24px; 
-      background: #f8f9fa; 
-    }
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-      background: white;
-      padding: 32px;
-      border-radius: 8px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    h1 { 
-      font-size: 28px; 
-      margin-bottom: 8px; 
-      color: #333;
-      text-align: center;
-    }
-    p { 
-      color: #666; 
-      text-align: center;
-      margin-bottom: 24px;
-    }
-    .links { 
-      display: flex; 
-      gap: 16px; 
-      flex-wrap: wrap; 
-      justify-content: center;
-    }
-    a.button {
-      display: inline-block; 
-      padding: 16px 24px; 
-      background: #0d6efd; 
-      color: white;
-      text-decoration: none; 
-      border-radius: 8px; 
-      font-weight: bold;
-      font-size: 16px;
-      transition: background 0.2s;
-      min-width: 220px;
-      text-align: center;
-    }
-    a.button:hover { 
-      background: #0b5ed7; 
-    }
-    .button.secondary {
-      background: #6c757d;
-    }
-    .button.secondary:hover {
-      background: #5c636a;
-    }
-    .tip {
-      margin-top: 32px;
-      padding: 16px;
-      background: #e7f3ff;
-      border-left: 4px solid #0d6efd;
-      border-radius: 4px;
-    }
-    .tip p {
-      margin: 0;
-      color: #0d6efd;
-      font-size: 14px;
-      text-align: left;
-    }
+    body { font-family: Arial, sans-serif; margin: 24px; background: #f8f9fa; }
+    .container { max-width: 720px; margin: 0 auto; background: white; padding: 32px; border-radius: 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.08); }
+    .hero { display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom: 6px; }
+    .hero .emoji { font-size: 40px; }
+    h1 { font-size: 30px; margin: 0; color: #222; text-align: center; }
+    .subtitle { text-align:center; color:#495057; margin: 6px 0 18px; font-weight: 600; }
+    p { color: #666; text-align: center; margin-bottom: 20px; }
+    .links { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+    a.button { display: inline-block; padding: 16px 20px; background: #0d6efd; color: white; text-decoration: none; border-radius: 10px; font-weight: bold; font-size: 16px; text-align: center; }
+    a.button.secondary { background: #6c757d; }
+    a.button:hover { filter: brightness(0.95); }
+    .tip { margin-top: 28px; padding: 14px; background: #e7f3ff; border-left: 4px solid #0d6efd; border-radius: 6px; color: #0d6efd; font-size: 14px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>🏷️ Trazabilidad - Etiquetas</h1>
-    <p>Selecciona el tipo de etiqueta que quieres imprimir con código QR.</p>
-    
+    <div class="hero">
+      <div class="emoji">🥚</div>
+      <h1>Trazabilidad — Bodega de Huevo Palmas</h1>
+      <div class="emoji">🐔</div>
+    </div>
+    <div class="subtitle">Operaciones rápidas con etiquetas y QR</div>
+    <p>Selecciona una opción para operar.</p>
+
     <div class="links">
       <a class="button" href="./recepcion.html">📝 Registro de materiales (Empaque y MP)</a>
-      <a class="button secondary" href="./empaque.html">📦 Etiqueta de Empaque</a>
-      <a class="button secondary" href="./mp.html">🥚 Etiqueta Materia Prima (LP)</a>
+      <a class="button" href="./realizar_empaque.html">🏭 Realizar Empaque (consumo de lotes)</a>
+      <a class="button secondary" href="./empaque.html">📦 Etiqueta rápida: Empaque</a>
+      <a class="button secondary" href="./mp.html">🥚 Etiqueta rápida: Materia Prima (LP)</a>
     </div>
 
-    <div class="tip">
-      <p><strong>💡 Tip:</strong> Agrega esta página a "Favoritos" o al "Inicio" del móvil para acceso rápido desde planta.</p>
-    </div>
+    <div class="tip"><strong>Tip:</strong> Agrega esta página a Favoritos o al Inicio del móvil para acceso rápido desde planta.</div>
   </div>
 </body>
 </html>
