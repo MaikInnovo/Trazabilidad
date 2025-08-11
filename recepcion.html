@@ -217,14 +217,45 @@
     }
     function pad(n, len=2){ return String(n).padStart(len,'0'); }
     function saveLS(key, item, pkField) {
-      const a = JSON.parse(localStorage.getItem(key) || "[]");
-      const i = a.findIndex(x => x[pkField] === item[pkField]);
-      if (i >= 0) a[i] = item; else a.push(item);
-      localStorage.setItem(key, JSON.stringify(a));
+      try {
+        const a = JSON.parse(localStorage.getItem(key) || "[]");
+        const i = a.findIndex(x => x[pkField] === item[pkField]);
+        if (i >= 0) a[i] = item; else a.push(item);
+        localStorage.setItem(key, JSON.stringify(a));
+        return { ok: true };
+      } catch (e) {
+        console.error('LocalStorage error:', e);
+        return { ok: false, error: e?.message || 'Error guardando en este navegador' };
+      }
     }
     function isLote(val) {
       return /^[A-Z0-9-]{2,30}$/i.test((val||"").trim());
     }
+
+    // QR helper seguro (no rompe si la librería no carga)
+    function safeCreateQR(el, text) {
+      try {
+        el.innerHTML = "";
+        // Si no existe QRCode (CDN bloqueado), mostramos el texto como fallback
+        if (typeof QRCode === "undefined") {
+          const pre = document.createElement("div");
+          pre.style.fontSize = "10pt";
+          pre.style.whiteSpace = "pre-wrap";
+          pre.textContent = text;
+          el.appendChild(pre);
+          return;
+        }
+        new QRCode(el, { text, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+      } catch (e) {
+        el.innerHTML = "";
+        const pre = document.createElement("div");
+        pre.style.fontSize = "10pt";
+        pre.style.whiteSpace = "pre-wrap";
+        pre.textContent = text;
+        el.appendChild(pre);
+      }
+    }
+
 
     // Empaque: calcular lote al cambiar tipo/fecha
     function refreshEmpaque() {
@@ -251,8 +282,7 @@
       $("#emp_lote_show").textContent = `Lote: ${lote}`;
       $("#emp_origen").textContent = `Origen (juliano): ${pad(jul,3)}/20${aa}`;
       const payload = `(10)${lote}(91)${tipo}|${desc}`;
-      $("#emp_qr").innerHTML = "";
-      new QRCode($("#emp_qr"), { text: payload, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+      safeCreateQR($("#emp_qr"), payload);
     }
     $("#emp_tipo").addEventListener("change", refreshEmpaque);
     $("#emp_fecha").addEventListener("change", refreshEmpaque);
@@ -277,9 +307,78 @@
         ubicacion: $("#emp_loc").value || null,
         ts: new Date().toISOString(), estado: "liberado"
       };
-      saveLS("lotesEmpaque", item, "id_compacto"); // INVENTARIO Empaque
-      $("#emp_status").innerHTML = `<span class="ok">Guardado</span> Lote ${lote} — ${desc}. Ya está en Inventario.`;
+      const resEmp = saveLS("lotesEmpaque", item, "id_compacto"); // INVENTARIO Empaque
+      if (!resEmp.ok) {
+        $("#emp_status").innerHTML = `<span class="err">No se pudo guardar</span> ${resEmp.error || ''}`;
+      } else {
+        $("#emp_status").innerHTML = `<span class=\"ok\">Guardado</span> Lote ${lote} — ${desc}. Ya está en Inventario.`;
+      }
     });
 
     $("#emp_imprimir").addEventListener("click", () => {
-      i
+      if (!$("#emp_lote").value) { $("#emp_status").innerHTML = `<span class="err">Completa tipo y fecha</span>`; return; }
+      window.print();
+    });
+
+    // MP genérico (sin LP)
+    function updateMPPreview() {
+      const lote = ($("#mp_lote").value || "").trim().toUpperCase();
+      const fstr = $("#mp_fecha").value || "";
+      if (!isLote(lote)) {
+        $("#labelMP").style.display = "none";
+        return;
+      }
+      $("#labelEmp").style.display = "none";
+      $("#labelMP").style.display = "";
+      $("#mp_lote_show").textContent = `Lote: ${lote}`;
+      $("#mp_fecha_show").textContent = fstr ? `Fecha: ${fstr}` : "Fecha: -";
+
+      // QR payload: (10)Lote y opcionalmente (11)AAMMDD si hay fecha
+      let payload = `(10)${lote}`;
+      if (fstr) {
+        const d = new Date(fstr + "T00:00:00");
+        const aa = String(d.getFullYear()).slice(2);
+        const mm = pad(d.getMonth()+1);
+        const dd = pad(d.getDate());
+        payload += `(11)${aa}${mm}${dd}`;
+      }
+      safeCreateQR($("#mp_qr"), payload);
+    }
+    $("#mp_lote").addEventListener("input", updateMPPreview);
+    $("#mp_fecha").addEventListener("change", updateMPPreview);
+
+    $("#mp_guardar").addEventListener("click", () => {
+      const lote = ($("#mp_lote").value || "").trim().toUpperCase();
+      if (!isLote(lote)) { $("#mp_status").innerHTML = `<span class="err">Lote inválido. Usa 2 a 30 caracteres alfanuméricos o guiones</span>`; return; }
+      const fstr = $("#mp_fecha").value || null;
+      const cart = parseInt($("#mp_cart").value || "0", 10);
+      const peso = parseFloat($("#mp_peso").value || "0");
+      const tara = parseFloat($("#mp_tara").value || "0");
+      const neto = Math.max(0,(peso||0)-(tara||0));
+      const item = {
+        id_lote_mp: lote,
+        fecha: fstr,
+        cartones: cart, peso_total_kg: peso||0, tara_kg: tara||0, neto_kg: neto,
+        ubicacion: $("#mp_loc").value || null, ts: new Date().toISOString(), estado:"liberado"
+      };
+      saveLS("lotesMP", item, "id_lote_mp"); // INVENTARIO MP
+      $("#mp_status").innerHTML = `<span class="ok">Guardado</span> ${item.id_lote_mp} — Cartones: ${item.cartones} — Neto: ${item.neto_kg} kg. Ya está en Inventario.`;
+      updateMPPreview();
+    });
+
+    $("#mp_imprimir").addEventListener("click", () => {
+      const lote = ($("#mp_lote").value || "").trim();
+      if (!isLote(lote)) { $("#mp_status").innerHTML = `<span class="err">Completa un lote válido para imprimir</span>`; return; }
+      window.print();
+    });
+
+    // Inicial: set hoy para empaque
+    document.addEventListener("DOMContentLoaded", () => {
+      const today = new Date();
+      const iso = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+      $("#emp_fecha").value = iso; refreshEmpaque();
+      updateMPPreview();
+    });
+  </script>
+</body>
+</html>
