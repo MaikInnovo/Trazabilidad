@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <title>Realizar Empaque (Consumo de lotes)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <!-- QR scanner opcional -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.9/html5-qrcode.min.js"></script>
+  <!-- Librería de escáner QR (opcional). Si no carga, la app sigue funcionando. -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.9/html5-qrcode.min.js" defer></script>
   <style>
     :root { --pri:#0d6efd; --sec:#6c757d; --ok:#0a7f2e; --err:#b71c1c; --bg:#f6f7fb; --card:#fff; --muted:#657082; }
     *{box-sizing:border-box}
@@ -26,6 +26,7 @@
     .btns { display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
     button { padding: 10px 14px; border: 0; border-radius: 10px; background: var(--pri); color:#fff; font-weight: 800; cursor: pointer; }
     button.secondary { background: var(--sec); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
     .status { margin-top: 8px; font-weight:700; }
     .ok { color: var(--ok); } .err { color: var(--err); }
     table { width:100%; border-collapse: collapse; font-size: 14px; }
@@ -42,17 +43,25 @@
 
     <div class="card">
       <h2>Lote final</h2>
-      <p class="muted">Define el lote final de empaque/producto al que se asociarán los consumos.</p>
+      <p class="muted">Define el lote final y a quién va destinado. Puedes indicar el MP principal.</p>
       <div class="row">
-        <div class="col-6">
-          <label>ID Lote Final (PF/Empaque)</label>
+        <div class="col-4">
+          <label>ID Lote Final</label>
           <input id="pf_lote" placeholder="PF-20250811-001 o EMP-250145-01">
         </div>
         <div class="col-3">
           <label>Fecha</label>
           <input id="pf_fecha" type="date">
         </div>
-        <div class="col-3">
+        <div class="col-5">
+          <label>Cliente destino</label>
+          <input id="pf_cliente" placeholder="Cliente S.A. / Sucursal">
+        </div>
+        <div class="col-6">
+          <label>Lote MP principal (LPddmmaa)</label>
+          <input id="pf_mp_principal" placeholder="LP110825">
+        </div>
+        <div class="col-6">
           <label>Responsable</label>
           <input id="pf_resp" placeholder="Operador">
         </div>
@@ -66,7 +75,7 @@
     <div class="cards">
       <div class="card">
         <h2>Consumir Materia Prima (LP)</h2>
-        <p class="muted">Escanea o escribe el lote LP y la cantidad. Se agregará a la lista.</p>
+        <p class="muted">Escanea o escribe el lote y la cantidad. Se agregará a la lista.</p>
         <div class="row">
           <div class="col-12">
             <div id="scanLP" class="scanbox">
@@ -94,7 +103,7 @@
 
       <div class="card">
         <h2>Consumir Material de Empaque (01jjjaa)</h2>
-        <p class="muted">Escanea o escribe el lote de empaque y la cantidad. Se agregará a la lista.</p>
+        <p class="muted">Escanea o escribe el lote y la cantidad. Se agregará a la lista.</p>
         <div class="row">
           <div class="col-12">
             <div id="scanEmp" class="scanbox">
@@ -140,6 +149,7 @@
     // Helpers
     const $ = s => document.querySelector(s);
     const nowISO = () => new Date().toISOString();
+    const hasScanner = () => typeof window.Html5Qrcode !== "undefined";
 
     function saveLS(key, item, pkField) {
       const a = JSON.parse(localStorage.getItem(key) || "[]");
@@ -151,49 +161,55 @@
       const a = JSON.parse(localStorage.getItem(key) || "[]");
       a.push(item); localStorage.setItem(key, JSON.stringify(a));
     }
-    function parseLP(s) {
-      const m = (s||"").trim().toUpperCase().match(/^LP[- ]?(\\d{2})[- ]?(\\d{2})[- ]?(\\d{2})$/);
-      return !!m;
+    function isLP(s) {
+      return /^LP[- ]?\d{2}[- ]?\d{2}[- ]?\d{2}$/.test((s||"").trim().toUpperCase());
     }
-    function parseEmp(s) {
-      const m = (s||"").trim().match(/^(\\d{2})[- ]?(\\d{3})[- ]?(\\d{2})$/);
-      return !!m;
+    function isEmpaque(s) {
+      return /^\d{2}[- ]?\d{3}[- ]?\d{2}$/.test((s||"").trim());
     }
 
-    // Estado en memoria
+    // Estado
     const state = { pf: null, renglones: [] };
 
     // Iniciar lote final
     $("#pf_iniciar").addEventListener("click", () => {
       const id = $("#pf_lote").value.trim();
       const fecha = $("#pf_fecha").value;
-      const resp = $("#pf_resp").value.trim() || null;
+      const resp = ($("#pf_resp").value || "").trim() || null;
+      const cliente = ($("#pf_cliente").value || "").trim() || null;
+      const mp_principal = ($("#pf_mp_principal").value || "").trim().toUpperCase() || null;
       if (!id) { $("#pf_status").innerHTML = '<span class="err">Define el ID de lote final</span>'; return; }
       if (!fecha) { $("#pf_status").innerHTML = '<span class="err">Selecciona la fecha</span>'; return; }
-      state.pf = { id_lote_pf: id, fecha, responsable: resp, estado: "en_proceso", ts: nowISO() };
+      if (mp_principal && !isLP(mp_principal)) { $("#pf_status").innerHTML = '<span class="err">MP principal inválido (LPddmmaa)</span>'; return; }
+      state.pf = { id_lote_pf: id, fecha, responsable: resp, cliente_destino: cliente, mp_principal, estado: "en_proceso", ts: nowISO() };
       $("#pf_status").innerHTML = '<span class="ok">Lote iniciado</span>';
     });
 
     // Agregar consumo MP
     $("#lp_agregar").addEventListener("click", () => {
       if (!state.pf) { $("#lp_status").innerHTML = '<span class="err">Inicia el lote final primero</span>'; return; }
-      const lote = $("#lp_lote").value.trim().toUpperCase();
+      const lote = ($("#lp_lote").value || "").trim().toUpperCase();
       const qty = parseFloat($("#lp_qty").value || "0");
-      if (!parseLP(lote)) { $("#lp_status").innerHTML = '<span class="err">Lote LP inválido (LPddmmaa)</span>'; return; }
+      if (!isLP(lote)) { $("#lp_status").innerHTML = '<span class="err">Lote LP inválido (LPddmmaa)</span>'; return; }
       if (!(qty > 0)) { $("#lp_status").innerHTML = '<span class="err">Ingresa cantidad > 0</span>'; return; }
-      const row = { tipo:"MP", id_lote: lote.replace(/\\s+/g,''), cantidad: qty, unidad:"kg/cartones", ts: nowISO() };
+      const row = { tipo:"MP", id_lote: lote.replace(/\s+/g,''), cantidad: qty, unidad:"kg/cartones", ts: nowISO() };
       state.renglones.push(row); renderTable();
+      // Si no hay MP principal definido, tomar el primero
+      if (!state.pf.mp_principal) {
+        state.pf.mp_principal = row.id_lote;
+        $("#pf_mp_principal").value = row.id_lote;
+      }
       $("#lp_status").innerHTML = '<span class="ok">Agregado</span>'; $("#lp_lote").value = ""; $("#lp_qty").value="";
     });
 
     // Agregar consumo Empaque
     $("#emp_agregar").addEventListener("click", () => {
       if (!state.pf) { $("#emp_status").innerHTML = '<span class="err">Inicia el lote final primero</span>'; return; }
-      const lote = $("#emp_lote").value.trim();
+      const lote = ($("#emp_lote").value || "").trim();
       const qty = parseFloat($("#emp_qty").value || "0");
-      if (!parseEmp(lote)) { $("#emp_status").innerHTML = '<span class="err">Lote empaque inválido (01jjjaa)</span>'; return; }
+      if (!isEmpaque(lote)) { $("#emp_status").innerHTML = '<span class="err">Lote empaque inválido (01jjjaa)</span>'; return; }
       if (!(qty > 0)) { $("#emp_status").innerHTML = '<span class="err">Ingresa cantidad > 0</span>'; return; }
-      const row = { tipo:"Empaque", id_lote: lote.replace(/\\s+/g,''), cantidad: qty, unidad:"pzas/cajas", ts: nowISO() };
+      const row = { tipo:"Empaque", id_lote: lote.replace(/\s+/g,''), cantidad: qty, unidad:"pzas/cajas", ts: nowISO() };
       state.renglones.push(row); renderTable();
       $("#emp_status").innerHTML = '<span class="ok">Agregado</span>'; $("#emp_lote").value = ""; $("#emp_qty").value="";
     });
@@ -203,17 +219,16 @@
       tb.innerHTML = "";
       state.renglones.forEach((r, idx) => {
         const tr = document.createElement("tr");
-        tr.innerHTML = \`
-          <td>\${r.tipo}</td>
-          <td>\${r.id_lote}</td>
-          <td>\${r.cantidad}</td>
-          <td>\${r.unidad}</td>
-          <td>\${new Date(r.ts).toLocaleString()}</td>
-          <td><button data-i="\${idx}" class="secondary">Quitar</button></td>
-        \`;
+        tr.innerHTML = `
+          <td>${r.tipo}</td>
+          <td>${r.id_lote}</td>
+          <td>${r.cantidad}</td>
+          <td>${r.unidad}</td>
+          <td>${new Date(r.ts).toLocaleString()}</td>
+          <td><button data-i="${idx}" class="secondary">Quitar</button></td>
+        `;
         tb.appendChild(tr);
       });
-      // botones quitar
       tb.querySelectorAll("button.secondary").forEach(btn => {
         btn.addEventListener("click", (e) => {
           const i = parseInt(e.target.getAttribute("data-i"), 10);
@@ -226,8 +241,11 @@
     $("#pf_guardar").addEventListener("click", () => {
       if (!state.pf) { $("#save_status").innerHTML = '<span class="err">Inicia el lote final</span>'; return; }
       if (state.renglones.length === 0) { $("#save_status").innerHTML = '<span class="err">Agrega al menos un consumo</span>'; return; }
+      // Validar MP principal si está lleno
+      const mp_p = ($("#pf_mp_principal").value || "").trim().toUpperCase();
+      if (mp_p && !isLP(mp_p)) { $("#save_status").innerHTML = '<span class="err">MP principal inválido (LPddmmaa)</span>'; return; }
+      state.pf.mp_principal = mp_p || state.pf.mp_principal || null;
 
-      // Guarda lote final
       const pf = { ...state.pf, estado: "cerrado", ts_cierre: nowISO() };
       saveLS("lotesPF", pf, "id_lote_pf");
 
@@ -242,42 +260,62 @@
 
       // Reset
       state.pf = null; state.renglones = []; renderTable();
-      $("#pf_lote").value=""; $("#pf_fecha").value=""; $("#pf_resp").value="";
+      $("#pf_lote").value=""; $("#pf_fecha").value=""; $("#pf_resp").value=""; $("#pf_cliente").value=""; $("#pf_mp_principal").value="";
       $("#save_status").innerHTML = '<span class="ok">Guardado. Lote final y consumos registrados</span>';
     });
 
-    // Scanner: abre cámara y captura texto
+    // Escáner QR con fallback
     let lpScanner=null, empScanner=null;
+
     function startScanner(domId, onScan, onError) {
-      const s = new Html5Qrcode(domId);
-      s.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
+      const inst = new Html5Qrcode(domId);
+      inst.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
         (decoded) => onScan(decoded),
         (err) => onError && onError(err)
       );
-      return s;
+      return inst;
     }
+
+    function enableScanButtonsOrFallback() {
+      if (!hasScanner()) {
+        // Deshabilitar si no hay cámara o no cargó lib
+        $("#lp_scan_btn").disabled = true;
+        $("#lp_scan_stop").disabled = true;
+        $("#emp_scan_btn").disabled = true;
+        $("#emp_scan_stop").disabled = true;
+        document.querySelectorAll(".scanbox").forEach(box => {
+          const p = document.createElement("div");
+          p.className = "muted";
+          p.textContent = "El escáner de QR no está disponible. Ingresa el lote manualmente.";
+          box.appendChild(p);
+        });
+      }
+    }
+
     // LP scanner
-    $("#lp_scan_btn").addEventListener("click", async () => {
-      if (lpScanner) return;
+    $("#lp_scan_btn").addEventListener("click", () => {
+      if (!hasScanner() || lpScanner) return;
       $("#lp_scan_stop").disabled = false;
       lpScanner = startScanner("lp_reader", (txt) => {
-        // Admite payload como (10)LPddmmaa(11)yymmdd(91)...
-        const m = txt.match(/LP\\d{6}/i);
-        $("#lp_lote").value = m ? m[0].toUpperCase() : txt.trim();
+        // Acepta QR con payload GS1 que contenga LPddmmaa
+        const m = (txt||"").match(/LP\d{6}/i);
+        $("#lp_lote").value = m ? m[0].toUpperCase() : (txt||"").trim().toUpperCase();
       });
     });
     $("#lp_scan_stop").addEventListener("click", () => {
       if (lpScanner) { lpScanner.stop(); lpScanner.clear(); lpScanner=null; }
       $("#lp_scan_stop").disabled = true;
     });
+
     // Empaque scanner
-    $("#emp_scan_btn").addEventListener("click", async () => {
-      if (empScanner) return;
+    $("#emp_scan_btn").addEventListener("click", () => {
+      if (!hasScanner() || empScanner) return;
       $("#emp_scan_stop").disabled = false;
       empScanner = startScanner("emp_reader", (txt) => {
-        // Admite payload como (10)01jjjaa(91)01|desc
-        const m = txt.match(/\\(10\\)(\\d{7})/);
-        if (m) $("#emp_lote").value = m[1]; else $("#emp_lote").value = txt.trim();
+        // Busca (10)######## dentro del QR de Empaque (nuestro payload usa (10)01jjjaa)
+        const m = (txt||"").match(/\(10\)(\d{7,14})/);
+        if (m) $("#emp_lote").value = m[1];
+        else $("#emp_lote").value = (txt||"").trim();
       });
     });
     $("#emp_scan_stop").addEventListener("click", () => {
@@ -290,6 +328,7 @@
       const today = new Date();
       const iso = today.toISOString().slice(0,10);
       $("#pf_fecha").value = iso;
+      enableScanButtonsOrFallback();
     });
   </script>
 </body>
