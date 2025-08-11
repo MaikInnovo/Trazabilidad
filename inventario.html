@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Inventario (MP y Empaque)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root { --pri:#0d6efd; --sec:#6c757d; --ok:#0a7f2e; --err:#b71c1c; --bg:#f6f7fb; --card:#fff; --muted:#657082; }
+    *{box-sizing:border-box}
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: #222; }
+    .shell { max-width: 1100px; margin: 0 auto; padding: 28px 16px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 12px; }
+    a.back { color: var(--pri); text-decoration:none; font-weight:700; }
+    .card { background: var(--card); border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; box-shadow: 0 8px 20px rgba(0,0,0,.05); margin-bottom: 16px; }
+    h1 { font-size: 20px; margin:0; }
+    h2 { font-size:18px; margin: 0 0 6px; }
+    .muted { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+    .row { display:grid; grid-template-columns: repeat(12, 1fr); gap: 10px; }
+    .col-12{grid-column: span 12}.col-6{grid-column: span 6}.col-5{grid-column: span 5}.col-4{grid-column: span 4}.col-3{grid-column: span 3}
+    label { font-weight: 700; font-size: 13px; display:block; margin: 8px 0 6px; }
+    input, select { width: 100%; padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 10px; background:#fff; }
+    .btns { display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
+    button { padding: 10px 14px; border: 0; border-radius: 10px; background: var(--pri); color:#fff; font-weight: 800; cursor: pointer; }
+    button.secondary { background: var(--sec); }
+    table { width:100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    tr:hover { background: #f8fafc; }
+    .neg { color: var(--err); font-weight: 700; }
+    .tabs { display:flex; gap:10px; margin-bottom: 10px; }
+    .tab { padding: 8px 12px; border:1px solid #cfd6e4; border-radius: 10px; background:#fff; cursor:pointer; }
+    .tab.active { background: var(--pri); color:#fff; border-color: var(--pri); }
+    .hidden { display:none; }
+    .status { margin-top: 6px; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <h1>📦 Inventario (MP y Empaque)</h1>
+      <a class="back" href="./index.html">← Volver al inicio</a>
+    </header>
+
+    <div class="card">
+      <div class="tabs">
+        <div id="tab_mp" class="tab active">Materia Prima</div>
+        <div id="tab_emp" class="tab">Empaque</div>
+      </div>
+
+      <div id="filtros_mp">
+        <h2>Filtros MP</h2>
+        <p class="muted">Filtra por lote y rango de fechas (fecha de recepción).</p>
+        <div class="row">
+          <div class="col-4">
+            <label>Lote contiene</label>
+            <input id="mp_f_lote" placeholder="Ej. ABC o 2025">
+          </div>
+          <div class="col-4">
+            <label>Fecha desde</label>
+            <input id="mp_f_desde" type="date">
+          </div>
+          <div class="col-4">
+            <label>Fecha hasta</label>
+            <input id="mp_f_hasta" type="date">
+          </div>
+          <div class="col-12">
+            <div class="btns">
+              <button id="mp_aplicar">Aplicar</button>
+              <button id="mp_limpiar" class="secondary">Limpiar</button>
+              <button id="mp_export" class="secondary">Exportar CSV</button>
+              <div id="mp_status" class="status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="filtros_emp" class="hidden">
+        <h2>Filtros Empaque</h2>
+        <p class="muted">Filtra por lote y rango de fechas (fecha de recepción).</p>
+        <div class="row">
+          <div class="col-4">
+            <label>Lote contiene</label>
+            <input id="emp_f_lote" placeholder="Ej. 0114525 o 01-145-25">
+          </div>
+          <div class="col-4">
+            <label>Fecha desde</label>
+            <input id="emp_f_desde" type="date">
+          </div>
+          <div class="col-4">
+            <label>Fecha hasta</label>
+            <input id="emp_f_hasta" type="date">
+          </div>
+          <div class="col-12">
+            <div class="btns">
+              <button id="emp_aplicar">Aplicar</button>
+              <button id="emp_limpiar" class="secondary">Limpiar</button>
+              <button id="emp_export" class="secondary">Exportar CSV</button>
+              <div id="emp_status" class="status"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tabla_mp_wrap">
+        <h2>Existencias MP</h2>
+        <p class="muted">Disponible = Neto (kg) recibido − Consumido. Si usaste consumos en otra unidad, estandariza a kg para que el disponible sea correcto.</p>
+        <table id="tabla_mp">
+          <thead>
+            <tr>
+              <th>Lote MP</th>
+              <th>Fecha</th>
+              <th>Cartones</th>
+              <th>Peso total (kg)</th>
+              <th>Neto (kg)</th>
+              <th>Consumido</th>
+              <th>Disponible (kg)</th>
+              <th>Ubicación</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div id="tabla_emp_wrap" class="hidden">
+        <h2>Existencias Empaque</h2>
+        <p class="muted">Disponible = Recepcionado − Consumido.</p>
+        <table id="tabla_emp">
+          <thead>
+            <tr>
+              <th>Lote Empaque</th>
+              <th>Tipo</th>
+              <th>Descripción</th>
+              <th>Fecha</th>
+              <th>Recepcionado</th>
+              <th>Unidad</th>
+              <th>Consumido</th>
+              <th>Disponible</th>
+              <th>Ubicación</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Helpers
+    const $ = s => document.querySelector(s);
+    function readLS(key) { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } }
+    function toCSV(rows) {
+      if (!rows || rows.length === 0) return "";
+      const headers = Object.keys(rows[0]);
+      const lines = [headers.join(",")];
+      rows.forEach(r => {
+        lines.push(headers.map(h => {
+          const val = r[h] == null ? "" : String(r[h]).replace(/"/g,'""');
+          return `"${val}"`;
+        }).join(","));
+      });
+      return lines.join("\n");
+    }
+    function download(filename, text) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], {type:"text/csv;charset=utf-8;"}));
+      a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+    }
+
+    // Datos en memoria
+    let lotesMP = [];
+    let lotesEmp = [];
+    let consMP = [];
+    let consEmp = [];
+
+    // Tabs
+    $("#tab_mp").addEventListener("click", () => setTab("mp"));
+    $("#tab_emp").addEventListener("click", () => setTab("emp"));
+    function setTab(which) {
+      const mpActive = which === "mp";
+      $("#tab_mp").classList.toggle("active", mpActive);
+      $("#tab_emp").classList.toggle("active", !mpActive);
+      $("#filtros_mp").classList.toggle("hidden", !mpActive);
+      $("#filtros_emp").classList.toggle("hidden", mpActive);
+      $("#tabla_mp_wrap").classList.toggle("hidden", !mpActive);
+      $("#tabla_emp_wrap").classList.toggle("hidden", mpActive);
+    }
+
+    // Render MP
+    function aplicarFiltrosMP() {
+      const fLote = ($("#mp_f_lote").value || "").toLowerCase().trim();
+      const fDesde = $("#mp_f_desde").value ? new Date($("#mp_f_desde").value + "T00:00:00") : null;
+      const fHasta = $("#mp_f_hasta").value ? new Date($("#mp_f_hasta").value + "T23:59:59") : null;
+
+      // Map consumido por lote
+      const consumosMap = {};
+      consMP.forEach(r => {
+        if (!consumosMap[r.id_lote_mp]) consumosMap[r.id_lote_mp] = 0;
+        consumosMap[r.id_lote_mp] += Number(r.cantidad || 0);
+      });
+
+      // Filtrar y proyectar
+      let rows = lotesMP.map(x => {
+        const fecha = x.fecha || null;
+        const consumido = consumosMap[x.id_lote_mp] || 0;
+        const disponible = (Number(x.neto_kg || 0) - consumido);
+        return {
+          id_lote_mp: x.id_lote_mp || "",
+          fecha,
+          cartones: Number(x.cartones || 0),
+          peso_total_kg: Number(x.peso_total_kg || 0),
+          neto_kg: Number(x.neto_kg || 0),
+          consumido: Number(consumido.toFixed(3)),
+          disponible_kg: Number(disponible.toFixed(3)),
+          ubicacion: x.ubicacion || ""
+        };
+      });
+
+      if (fLote) rows = rows.filter(r => r.id_lote_mp.toLowerCase().includes(fLote));
+      if (fDesde) rows = rows.filter(r => !r.fecha || new Date(r.fecha + "T00:00:00") >= fDesde);
+      if (fHasta) rows = rows.filter(r => !r.fecha || new Date(r.fecha + "T00:00:00") <= fHasta);
+
+      renderTablaMP(rows);
+      $("#mp_status").textContent = `${rows.length} lote(s) de MP`;
+      return rows;
+    }
+
+    function renderTablaMP(rows) {
+      const tb = $("#tabla_mp tbody");
+      tb.innerHTML = "";
+      rows.sort((a,b) => (a.fecha || "").localeCompare(b.fecha) || a.id_lote_mp.localeCompare(b.id_lote_mp));
+      rows.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${r.id_lote_mp}</td>
+          <td>${r.fecha || "-"}</td>
+          <td>${r.cartones}</td>
+          <td>${r.peso_total_kg}</td>
+          <td>${r.neto_kg}</td>
+          <td>${r.consumido}</td>
+          <td class="${r.disponible_kg < 0 ? 'neg' : ''}">${r.disponible_kg}</td>
+          <td>${r.ubicacion || "-"}</td>
+        `;
+        tb.appendChild(tr);
+      });
+    }
+
+    // Render Empaque
+    function aplicarFiltrosEmp() {
+      const fLote = ($("#emp_f_lote").value || "").toLowerCase().trim();
+      const fDesde = $("#emp_f_desde").value ? new Date($("#emp_f_desde").value + "T00:00:00") : null;
+      const fHasta = $("#emp_f_hasta").value ? new Date($("#emp_f_hasta").value + "T23:59:59") : null;
+
+      // Map consumido por lote compacto (id_compacto)
+      const consumosMap = {};
+      consEmp.forEach(r => {
+        if (!consumosMap[r.id_lote_empaque]) consumosMap[r.id_lote_empaque] = 0;
+        consumosMap[r.id_lote_empaque] += Number(r.cantidad || 0);
+      });
+
+      let rows = lotesEmp.map(x => {
+        const consumido = consumosMap[x.id_compacto] || 0;
+        const disponible = Number(x.cantidad || 0) - consumido;
+        return {
+          id_lote_empaque: x.id_compacto || "",
+          tipo: x.tipo || "",
+          descripcion: x.descripcion_tipo || "",
+          fecha: x.fecha_aprox || "",
+          recepcionado: Number(x.cantidad || 0),
+          unidad: x.unidad || "",
+          consumido: Number((consumido).toFixed(3)),
+          disponible: Number(disponible.toFixed(3)),
+          ubicacion: x.ubicacion || ""
+        };
+      });
+
+      if (fLote) rows = rows.filter(r => r.id_lote_empaque.toLowerCase().includes(fLote));
+      if (fDesde) rows = rows.filter(r => !r.fecha || new Date(r.fecha + "T00:00:00") >= fDesde);
+      if (fHasta) rows = rows.filter(r => !r.fecha || new Date(r.fecha + "T00:00:00") <= fHasta);
+
+      renderTablaEmp(rows);
+      $("#emp_status").textContent = `${rows.length} lote(s) de empaque`;
+      return rows;
+    }
+
+    function renderTablaEmp(rows) {
+      const tb = $("#tabla_emp tbody");
+      tb.innerHTML = "";
+      rows.sort((a,b) => (a.fecha || "").localeCompare(b.fecha) || a.id_lote_empaque.localeCompare(b.id_lote_empaque));
+      rows.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${r.id_lote_empaque}</td>
+          <td>${r.tipo}</td>
+          <td>${r.descripcion || "-"}</td>
+          <td>${r.fecha || "-"}</td>
+          <td>${r.recepcionado}</td>
+          <td>${r.unidad || "-"}</td>
+          <td>${r.consumido}</td>
+          <td class="${r.disponible < 0 ? 'neg' : ''}">${r.disponible}</td>
+          <td>${r.ubicacion || "-"}</td>
+        `;
+        tb.appendChild(tr);
+      });
+    }
+
+    // Exportadores
+    $("#mp_export").addEventListener("click", () => {
+      const rows = aplicarFiltrosMP();
+      if (!rows.length) { alert("No hay datos para exportar"); return; }
+      const csv = toCSV(rows);
+      download("inventario_mp.csv", csv);
+    });
+    $("#emp_export").addEventListener("click", () => {
+      const rows = aplicarFiltrosEmp();
+      if (!rows.length) { alert("No hay datos para exportar"); return; }
+      const csv = toCSV(rows);
+      download("inventario_empaque.csv", csv);
+    });
+
+    // Botones filtros
+    $("#mp_aplicar").addEventListener("click", aplicarFiltrosMP);
+    $("#mp_limpiar").addEventListener("click", () => {
+      $("#mp_f_lote").value = ""; $("#mp_f_desde").value = ""; $("#mp_f_hasta").value = ""; aplicarFiltrosMP();
+    });
+    $("#emp_aplicar").addEventListener("click", aplicarFiltrosEmp);
+    $("#emp_limpiar").addEventListener("click", () => {
+      $("#emp_f_lote").value = ""; $("#emp_f_desde").value = ""; $("#emp_f_hasta").value = ""; aplicarFiltrosEmp();
+    });
+
+    // Inicial
+    document.addEventListener("DOMContentLoaded", () => {
+      lotesMP  = readLS("lotesMP");
+      lotesEmp = readLS("lotesEmpaque");
+      consMP   = readLS("consumosMP");
+      consEmp  = readLS("consumosEmpaque");
+
+      aplicarFiltrosMP(); // pestaña por defecto
+    });
+  </script>
+</body>
+</html>
