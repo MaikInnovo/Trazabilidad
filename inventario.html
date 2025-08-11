@@ -22,6 +22,7 @@
     .btns { display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
     button { padding: 10px 14px; border: 0; border-radius: 10px; background: var(--pri); color:#fff; font-weight: 800; cursor: pointer; }
     button.secondary { background: var(--sec); }
+    button.danger { background: var(--err); }
     table { width:100%; border-collapse: collapse; font-size: 14px; }
     th, td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
     tr:hover { background: #f8fafc; }
@@ -31,6 +32,7 @@
     .tab.active { background: var(--pri); color:#fff; border-color: var(--pri); }
     .hidden { display:none; }
     .status { margin-top: 6px; font-weight:700; }
+    .actions { display:flex; gap:8px; }
   </style>
 </head>
 <body>
@@ -114,6 +116,7 @@
               <th>Consumido</th>
               <th>Disponible (kg)</th>
               <th>Ubicación</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -135,6 +138,7 @@
               <th>Consumido</th>
               <th>Disponible</th>
               <th>Ubicación</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -148,6 +152,7 @@
     // Helpers
     const $ = s => document.querySelector(s);
     function readLS(key) { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } }
+    function writeLS(key, arr) { try { localStorage.setItem(key, JSON.stringify(arr)); return true; } catch(e){ alert("No se pudo guardar"); return false; } }
     function toCSV(rows) {
       if (!rows || rows.length === 0) return "";
       const headers = Object.keys(rows[0]);
@@ -239,6 +244,7 @@
           <td>${r.consumido}</td>
           <td class="${r.disponible_kg < 0 ? 'neg' : ''}">${r.disponible_kg}</td>
           <td>${r.ubicacion || "-"}</td>
+          <td><div class="actions"><button class="danger" data-del-mp="${r.id_lote_mp}">Eliminar</button></div></td>
         `;
         tb.appendChild(tr);
       });
@@ -298,6 +304,7 @@
           <td>${r.consumido}</td>
           <td class="${r.disponible < 0 ? 'neg' : ''}">${r.disponible}</td>
           <td>${r.ubicacion || "-"}</td>
+          <td><div class="actions"><button class="danger" data-del-emp="${r.id_lote_empaque}">Eliminar</button></div></td>
         `;
         tb.appendChild(tr);
       });
@@ -325,6 +332,34 @@
     $("#emp_aplicar").addEventListener("click", aplicarFiltrosEmp);
     $("#emp_limpiar").addEventListener("click", () => {
       $("#emp_f_lote").value = ""; $("#emp_f_desde").value = ""; $("#emp_f_hasta").value = ""; aplicarFiltrosEmp();
+    });
+
+    // Eliminar filas (delegación)
+    document.addEventListener("click", (ev) => {
+      const btnMP = ev.target.closest("[data-del-mp]");
+      if (btnMP) {
+        const id = btnMP.getAttribute("data-del-mp");
+        if (!confirm(`Eliminar lote MP ${id}?`)) return;
+        const arr = readLS("lotesMP");
+        const newArr = arr.filter(x => (x.id_lote_mp || "").toUpperCase() !== id.toUpperCase());
+        if (writeLS("lotesMP", newArr)) {
+          lotesMP = newArr;
+          aplicarFiltrosMP();
+        }
+        return;
+      }
+      const btnEmp = ev.target.closest("[data-del-emp]");
+      if (btnEmp) {
+        const id = btnEmp.getAttribute("data-del-emp");
+        if (!confirm(`Eliminar lote de empaque ${id}?`)) return;
+        const arr = readLS("lotesEmpaque");
+        const newArr = arr.filter(x => (x.id_compacto || "") !== id);
+        if (writeLS("lotesEmpaque", newArr)) {
+          lotesEmp = newArr;
+          aplicarFiltrosEmp();
+        }
+        return;
+      }
     });
 
     // Inicial
