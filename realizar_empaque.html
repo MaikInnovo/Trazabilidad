@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Realizar Empaque (Consumo de lotes)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- QR scanner opcional -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.9/html5-qrcode.min.js"></script>
+  <style>
+    :root { --pri:#0d6efd; --sec:#6c757d; --ok:#0a7f2e; --err:#b71c1c; --bg:#f6f7fb; --card:#fff; --muted:#657082; }
+    *{box-sizing:border-box}
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: #222; }
+    .shell { max-width: 1100px; margin: 0 auto; padding: 28px 16px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 12px; }
+    a.back { color: var(--pri); text-decoration:none; font-weight:700; }
+    .cards { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    @media (max-width: 980px) { .cards { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; box-shadow: 0 8px 20px rgba(0,0,0,.05); }
+    h1 { font-size: 20px; margin:0; }
+    h2 { font-size:18px; margin: 0 0 6px; }
+    .muted { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+    .row { display:grid; grid-template-columns: repeat(12, 1fr); gap: 10px; }
+    .col-12{grid-column: span 12}.col-8{grid-column: span 8}.col-6{grid-column: span 6}.col-4{grid-column: span 4}.col-3{grid-column: span 3}
+    label { font-weight: 700; font-size: 13px; display:block; margin: 8px 0 6px; }
+    input, select { width: 100%; padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 10px; background:#fff; }
+    .btns { display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
+    button { padding: 10px 14px; border: 0; border-radius: 10px; background: var(--pri); color:#fff; font-weight: 800; cursor: pointer; }
+    button.secondary { background: var(--sec); }
+    .status { margin-top: 8px; font-weight:700; }
+    .ok { color: var(--ok); } .err { color: var(--err); }
+    table { width:100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    .scanbox { border:1px solid #d1d5db; border-radius:10px; padding:10px; background:#fff; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <h1>🏭 Realizar Empaque (consumo de lotes)</h1>
+      <a class="back" href="./index.html">← Volver al inicio</a>
+    </header>
+
+    <div class="card">
+      <h2>Lote final</h2>
+      <p class="muted">Define el lote final de empaque/producto al que se asociarán los consumos.</p>
+      <div class="row">
+        <div class="col-6">
+          <label>ID Lote Final (PF/Empaque)</label>
+          <input id="pf_lote" placeholder="PF-20250811-001 o EMP-250145-01">
+        </div>
+        <div class="col-3">
+          <label>Fecha</label>
+          <input id="pf_fecha" type="date">
+        </div>
+        <div class="col-3">
+          <label>Responsable</label>
+          <input id="pf_resp" placeholder="Operador">
+        </div>
+      </div>
+      <div class="btns">
+        <button id="pf_iniciar">Iniciar lote</button>
+        <div id="pf_status" class="status"></div>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <h2>Consumir Materia Prima (LP)</h2>
+        <p class="muted">Escanea o escribe el lote LP y la cantidad. Se agregará a la lista.</p>
+        <div class="row">
+          <div class="col-12">
+            <div id="scanLP" class="scanbox">
+              <div class="btns">
+                <button id="lp_scan_btn">Escanear QR</button>
+                <button class="secondary" id="lp_scan_stop" disabled>Detener</button>
+              </div>
+              <div id="lp_reader" style="width:100%; max-width:420px; margin-top:8px;"></div>
+            </div>
+          </div>
+          <div class="col-8">
+            <label>Lote LP</label>
+            <input id="lp_lote" placeholder="LP110825">
+          </div>
+          <div class="col-4">
+            <label>Cantidad usada (kg o cartones)</label>
+            <input id="lp_qty" type="number" step="0.01" placeholder="100">
+          </div>
+        </div>
+        <div class="btns">
+          <button id="lp_agregar">Agregar consumo MP</button>
+          <div id="lp_status" class="status"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Consumir Material de Empaque (01jjjaa)</h2>
+        <p class="muted">Escanea o escribe el lote de empaque y la cantidad. Se agregará a la lista.</p>
+        <div class="row">
+          <div class="col-12">
+            <div id="scanEmp" class="scanbox">
+              <div class="btns">
+                <button id="emp_scan_btn">Escanear QR</button>
+                <button class="secondary" id="emp_scan_stop" disabled>Detener</button>
+              </div>
+              <div id="emp_reader" style="width:100%; max-width:420px; margin-top:8px;"></div>
+            </div>
+          </div>
+          <div class="col-8">
+            <label>Lote Empaque</label>
+            <input id="emp_lote" placeholder="0114525 o 01-145-25">
+          </div>
+          <div class="col-4">
+            <label>Cantidad usada (pzas/cajas)</label>
+            <input id="emp_qty" type="number" step="0.01" placeholder="50">
+          </div>
+        </div>
+        <div class="btns">
+          <button id="emp_agregar">Agregar consumo Empaque</button>
+          <div id="emp_status" class="status"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Detalle de consumos</h2>
+      <table id="tabla">
+        <thead>
+          <tr><th>Tipo</th><th>Lote</th><th>Cantidad</th><th>Unidad</th><th>Fecha</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="btns">
+        <button id="pf_guardar">Guardar todo</button>
+        <div id="save_status" class="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Helpers
+    const $ = s => document.querySelector(s);
+    const nowISO = () => new Date().toISOString();
+
+    function saveLS(key, item, pkField) {
+      const a = JSON.parse(localStorage.getItem(key) || "[]");
+      const i = a.findIndex(x => x[pkField] === item[pkField]);
+      if (i >= 0) a[i] = item; else a.push(item);
+      localStorage.setItem(key, JSON.stringify(a));
+    }
+    function pushLS(key, item) {
+      const a = JSON.parse(localStorage.getItem(key) || "[]");
+      a.push(item); localStorage.setItem(key, JSON.stringify(a));
+    }
+    function parseLP(s) {
+      const m = (s||"").trim().toUpperCase().match(/^LP[- ]?(\\d{2})[- ]?(\\d{2})[- ]?(\\d{2})$/);
+      return !!m;
+    }
+    function parseEmp(s) {
+      const m = (s||"").trim().match(/^(\\d{2})[- ]?(\\d{3})[- ]?(\\d{2})$/);
+      return !!m;
+    }
+
+    // Estado en memoria
+    const state = { pf: null, renglones: [] };
+
+    // Iniciar lote final
+    $("#pf_iniciar").addEventListener("click", () => {
+      const id = $("#pf_lote").value.trim();
+      const fecha = $("#pf_fecha").value;
+      const resp = $("#pf_resp").value.trim() || null;
+      if (!id) { $("#pf_status").innerHTML = '<span class="err">Define el ID de lote final</span>'; return; }
+      if (!fecha) { $("#pf_status").innerHTML = '<span class="err">Selecciona la fecha</span>'; return; }
+      state.pf = { id_lote_pf: id, fecha, responsable: resp, estado: "en_proceso", ts: nowISO() };
+      $("#pf_status").innerHTML = '<span class="ok">Lote iniciado</span>';
+    });
+
+    // Agregar consumo MP
+    $("#lp_agregar").addEventListener("click", () => {
+      if (!state.pf) { $("#lp_status").innerHTML = '<span class="err">Inicia el lote final primero</span>'; return; }
+      const lote = $("#lp_lote").value.trim().toUpperCase();
+      const qty = parseFloat($("#lp_qty").value || "0");
+      if (!parseLP(lote)) { $("#lp_status").innerHTML = '<span class="err">Lote LP inválido (LPddmmaa)</span>'; return; }
+      if (!(qty > 0)) { $("#lp_status").innerHTML = '<span class="err">Ingresa cantidad > 0</span>'; return; }
+      const row = { tipo:"MP", id_lote: lote.replace(/\\s+/g,''), cantidad: qty, unidad:"kg/cartones", ts: nowISO() };
+      state.renglones.push(row); renderTable();
+      $("#lp_status").innerHTML = '<span class="ok">Agregado</span>'; $("#lp_lote").value = ""; $("#lp_qty").value="";
+    });
+
+    // Agregar consumo Empaque
+    $("#emp_agregar").addEventListener("click", () => {
+      if (!state.pf) { $("#emp_status").innerHTML = '<span class="err">Inicia el lote final primero</span>'; return; }
+      const lote = $("#emp_lote").value.trim();
+      const qty = parseFloat($("#emp_qty").value || "0");
+      if (!parseEmp(lote)) { $("#emp_status").innerHTML = '<span class="err">Lote empaque inválido (01jjjaa)</span>'; return; }
+      if (!(qty > 0)) { $("#emp_status").innerHTML = '<span class="err">Ingresa cantidad > 0</span>'; return; }
+      const row = { tipo:"Empaque", id_lote: lote.replace(/\\s+/g,''), cantidad: qty, unidad:"pzas/cajas", ts: nowISO() };
+      state.renglones.push(row); renderTable();
+      $("#emp_status").innerHTML = '<span class="ok">Agregado</span>'; $("#emp_lote").value = ""; $("#emp_qty").value="";
+    });
+
+    function renderTable() {
+      const tb = document.querySelector("#tabla tbody");
+      tb.innerHTML = "";
+      state.renglones.forEach((r, idx) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = \`
+          <td>\${r.tipo}</td>
+          <td>\${r.id_lote}</td>
+          <td>\${r.cantidad}</td>
+          <td>\${r.unidad}</td>
+          <td>\${new Date(r.ts).toLocaleString()}</td>
+          <td><button data-i="\${idx}" class="secondary">Quitar</button></td>
+        \`;
+        tb.appendChild(tr);
+      });
+      // botones quitar
+      tb.querySelectorAll("button.secondary").forEach(btn => {
+        btn.addEventListener("click", (e) => {
+          const i = parseInt(e.target.getAttribute("data-i"), 10);
+          state.renglones.splice(i,1); renderTable();
+        });
+      });
+    }
+
+    // Guardar todo
+    $("#pf_guardar").addEventListener("click", () => {
+      if (!state.pf) { $("#save_status").innerHTML = '<span class="err">Inicia el lote final</span>'; return; }
+      if (state.renglones.length === 0) { $("#save_status").innerHTML = '<span class="err">Agrega al menos un consumo</span>'; return; }
+
+      // Guarda lote final
+      const pf = { ...state.pf, estado: "cerrado", ts_cierre: nowISO() };
+      saveLS("lotesPF", pf, "id_lote_pf");
+
+      // Guarda consumos
+      state.renglones.forEach(r => {
+        if (r.tipo === "MP") {
+          pushLS("consumosMP", { id_lote_pf: pf.id_lote_pf, id_lote_mp: r.id_lote, cantidad: r.cantidad, unidad: r.unidad, ts: r.ts });
+        } else {
+          pushLS("consumosEmpaque", { id_lote_pf: pf.id_lote_pf, id_lote_empaque: r.id_lote, cantidad: r.cantidad, unidad: r.unidad, ts: r.ts });
+        }
+      });
+
+      // Reset
+      state.pf = null; state.renglones = []; renderTable();
+      $("#pf_lote").value=""; $("#pf_fecha").value=""; $("#pf_resp").value="";
+      $("#save_status").innerHTML = '<span class="ok">Guardado. Lote final y consumos registrados</span>';
+    });
+
+    // Scanner: abre cámara y captura texto
+    let lpScanner=null, empScanner=null;
+    function startScanner(domId, onScan, onError) {
+      const s = new Html5Qrcode(domId);
+      s.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 },
+        (decoded) => onScan(decoded),
+        (err) => onError && onError(err)
+      );
+      return s;
+    }
+    // LP scanner
+    $("#lp_scan_btn").addEventListener("click", async () => {
+      if (lpScanner) return;
+      $("#lp_scan_stop").disabled = false;
+      lpScanner = startScanner("lp_reader", (txt) => {
+        // Admite payload como (10)LPddmmaa(11)yymmdd(91)...
+        const m = txt.match(/LP\\d{6}/i);
+        $("#lp_lote").value = m ? m[0].toUpperCase() : txt.trim();
+      });
+    });
+    $("#lp_scan_stop").addEventListener("click", () => {
+      if (lpScanner) { lpScanner.stop(); lpScanner.clear(); lpScanner=null; }
+      $("#lp_scan_stop").disabled = true;
+    });
+    // Empaque scanner
+    $("#emp_scan_btn").addEventListener("click", async () => {
+      if (empScanner) return;
+      $("#emp_scan_stop").disabled = false;
+      empScanner = startScanner("emp_reader", (txt) => {
+        // Admite payload como (10)01jjjaa(91)01|desc
+        const m = txt.match(/\\(10\\)(\\d{7})/);
+        if (m) $("#emp_lote").value = m[1]; else $("#emp_lote").value = txt.trim();
+      });
+    });
+    $("#emp_scan_stop").addEventListener("click", () => {
+      if (empScanner) { empScanner.stop(); empScanner.clear(); empScanner=null; }
+      $("#emp_scan_stop").disabled = true;
+    });
+
+    // Inicial
+    document.addEventListener("DOMContentLoaded", () => {
+      const today = new Date();
+      const iso = today.toISOString().slice(0,10);
+      $("#pf_fecha").value = iso;
+    });
+  </script>
+</body>
+</html>
