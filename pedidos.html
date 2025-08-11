@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Pedidos (Historial y detalle)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root { --pri:#0d6efd; --sec:#6c757d; --ok:#0a7f2e; --err:#b71c1c; --bg:#f6f7fb; --card:#fff; --muted:#657082; }
+    *{box-sizing:border-box}
+    body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; background: var(--bg); color: #222; }
+    .shell { max-width: 1100px; margin: 0 auto; padding: 28px 16px; }
+    header { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom: 12px; }
+    a.back { color: var(--pri); text-decoration:none; font-weight:700; }
+    .card { background: var(--card); border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; box-shadow: 0 8px 20px rgba(0,0,0,.05); margin-bottom: 16px; }
+    h1 { font-size: 20px; margin:0; }
+    h2 { font-size:18px; margin: 0 0 6px; }
+    .muted { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+    .row { display:grid; grid-template-columns: repeat(12, 1fr); gap: 10px; }
+    .col-12{grid-column: span 12}.col-8{grid-column: span 8}.col-6{grid-column: span 6}.col-4{grid-column: span 4}.col-3{grid-column: span 3}
+    label { font-weight: 700; font-size: 13px; display:block; margin: 8px 0 6px; }
+    input { width: 100%; padding: 10px 12px; border: 1px solid #cfd6e4; border-radius: 10px; background:#fff; }
+    .btns { display:flex; gap:10px; margin-top: 12px; flex-wrap: wrap; }
+    button { padding: 10px 14px; border: 0; border-radius: 10px; background: var(--pri); color:#fff; font-weight: 800; cursor: pointer; }
+    button.secondary { background: var(--sec); }
+    table { width:100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #e5e7eb; text-align: left; }
+    tr:hover { background: #f8fafc; }
+    .hl { background: #eef6ff; }
+    .status { margin-top: 6px; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <h1>📦 Pedidos (Historial y detalle)</h1>
+      <a class="back" href="./index.html">← Volver al inicio</a>
+    </header>
+
+    <div class="card">
+      <h2>Filtros</h2>
+      <p class="muted">Selecciona fecha para ver los pedidos de ese día. También puedes filtrar por ID de pedido o cliente.</p>
+      <div class="row">
+        <div class="col-3">
+          <label>Fecha</label>
+          <input id="f_fecha" type="date">
+        </div>
+        <div class="col-4">
+          <label>Buscar por ID Pedido</label>
+          <input id="f_id" placeholder="Ej. 2025-0811-01 o ABC">
+        </div>
+        <div class="col-5">
+          <label>Buscar por Cliente</label>
+          <input id="f_cliente" placeholder="Nombre cliente o sucursal">
+        </div>
+        <div class="col-12">
+          <div class="btns">
+            <button id="btn_aplicar">Aplicar filtros</button>
+            <button id="btn_limpiar" class="secondary">Limpiar</button>
+            <button id="btn_export_lista" class="secondary">Exportar lista CSV</button>
+            <div id="list_status" class="status"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Pedidos</h2>
+      <table id="tabla">
+        <thead>
+          <tr>
+            <th>ID Pedido</th>
+            <th>Fecha</th>
+            <th>Cliente</th>
+            <th>Responsable</th>
+            <th>Reng. MP</th>
+            <th>Reng. Empaque</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <p class="muted">Tip: haz clic en un pedido para ver el detalle abajo.</p>
+    </div>
+
+    <div class="card" id="detalleCard" style="display:none">
+      <h2>Detalle de pedido</h2>
+      <div id="detalleInfo" class="muted"></div>
+      <h3>Consumos de Materia Prima</h3>
+      <table id="t_mp">
+        <thead><tr><th>Lote MP</th><th>Cantidad</th><th>Unidad</th><th>Fecha</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <h3>Consumos de Empaque</h3>
+      <table id="t_emp">
+        <thead><tr><th>Lote Empaque</th><th>Cantidad</th><th>Unidad</th><th>Fecha</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="btns">
+        <button id="btn_export_det" class="secondary">Exportar detalle CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Helpers
+    const $ = s => document.querySelector(s);
+    const pad = (n, len=2) => String(n).padStart(len,'0');
+
+    function readLS(key) {
+      try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
+    }
+    function toCSV(rows) {
+      if (!rows || rows.length === 0) return "";
+      const headers = Object.keys(rows[0]);
+      const lines = [headers.join(",")];
+      rows.forEach(r => {
+        lines.push(headers.map(h => {
+          const val = r[h] == null ? "" : String(r[h]).replace(/"/g,'""');
+          return `"${val}"`;
+        }).join(","));
+      });
+      return lines.join("\n");
+    }
+    function download(filename, text) {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([text], {type:"text/csv;charset=utf-8;"}));
+      a.download = filename; a.click(); URL.revokeObjectURL(a.href);
+    }
+
+    // Datos
+    let lotesPF = [];
+    let consMP = [];
+    let consEmp = [];
+
+    // Estado UI
+    let selectedPF = null;
+
+    function countRenglones(pfId) {
+      const mp = consMP.filter(r => r.id_lote_pf === pfId).length;
+      const em = consEmp.filter(r => r.id_lote_pf === pfId).length;
+      return { mp, em };
+    }
+
+    function applyFilters() {
+      const fFecha = $("#f_fecha").value || ""; // yyyy-mm-dd o vacío
+      const fId = ($("#f_id").value || "").trim().toLowerCase();
+      const fCli = ($("#f_cliente").value || "").trim().toLowerCase();
+
+      let arr = [...lotesPF];
+      // Filtrar por fecha exacta si viene
+      if (fFecha) arr = arr.filter(p => (p.fecha || "") === fFecha);
+      // Filtrar por ID contiene
+      if (fId) arr = arr.filter(p => (p.id_lote_pf || "").toLowerCase().includes(fId));
+      // Filtrar por cliente contiene
+      if (fCli) arr = arr.filter(p => (p.cliente_destino || "").toLowerCase().includes(fCli));
+
+      renderTable(arr);
+      $("#list_status").textContent = `${arr.length} pedido(s) encontrados`;
+      // Limpiar selección de detalle
+      selectedPF = null;
+      $("#detalleCard").style.display = "none";
+      $("#tabla tbody tr").forEach?.(() => {}); // no-op
+    }
+
+    function renderTable(arr) {
+      const tb = $("#tabla tbody");
+      tb.innerHTML = "";
+      arr.sort((a,b) => (a.fecha || "").localeCompare(b.fecha) || (a.id_lote_pf||"").localeCompare(b.id_lote_pf||""));
+      arr.forEach(p => {
+        const { mp, em } = countRenglones(p.id_lote_pf);
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${p.id_lote_pf || "-"}</td>
+          <td>${p.fecha || "-"}</td>
+          <td>${p.cliente_destino || "-"}</td>
+          <td>${p.responsable || "-"}</td>
+          <td>${mp}</td>
+          <td>${em}</td>
+          <td>${p.estado || "-"}</td>
+        `;
+        tr.addEventListener("click", () => showDetalle(p));
+        tb.appendChild(tr);
+      });
+    }
+
+    function showDetalle(pf) {
+      selectedPF = pf;
+      // Resaltar fila seleccionada
+      $("#tabla tbody").querySelectorAll("tr").forEach(tr => tr.classList.remove("hl"));
+      const rows = Array.from($("#tabla tbody").children);
+      const idx = rows.findIndex(r => (r.children[0]?.textContent || "") === (pf.id_lote_pf || ""));
+      if (idx >= 0) rows[idx].classList.add("hl");
+
+      // Info
+      $("#detalleCard").style.display = "";
+      $("#detalleInfo").textContent = `Pedido: ${pf.id_lote_pf} — Fecha: ${pf.fecha || "-"} — Cliente: ${pf.cliente_destino || "-"} — Responsable: ${pf.responsable || "-"}`;
+
+      // MP
+      const mpRows = consMP.filter(r => r.id_lote_pf === pf.id_lote_pf);
+      const tbMP = $("#t_mp tbody"); tbMP.innerHTML = "";
+      mpRows.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${r.id_lote_mp}</td><td>${r.cantidad}</td><td>${r.unidad || ""}</td><td>${new Date(r.ts).toLocaleString()}</td>`;
+        tbMP.appendChild(tr);
+      });
+
+      // Empaque
+      const empRows = consEmp.filter(r => r.id_lote_pf === pf.id_lote_pf);
+      const tbEmp = $("#t_emp tbody"); tbEmp.innerHTML = "";
+      empRows.forEach(r => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${r.id_lote_empaque}</td><td>${r.cantidad}</td><td>${r.unidad || ""}</td><td>${new Date(r.ts).toLocaleString()}</td>`;
+        tbEmp.appendChild(tr);
+      });
+    }
+
+    // Exportar lista filtrada
+    $("#btn_export_lista").addEventListener("click", () => {
+      // reconstruir la lista filtrada tal como en applyFilters
+      const fFecha = $("#f_fecha").value || "";
+      const fId = ($("#f_id").value || "").trim().toLowerCase();
+      const fCli = ($("#f_cliente").value || "").trim().toLowerCase();
+      let arr = [...lotesPF];
+      if (fFecha) arr = arr.filter(p => (p.fecha || "") === fFecha);
+      if (fId) arr = arr.filter(p => (p.id_lote_pf || "").toLowerCase().includes(fId));
+      if (fCli) arr = arr.filter(p => (p.cliente_destino || "").toLowerCase().includes(fCli));
+      const csv = toCSV(arr);
+      if (!csv) { alert("No hay datos para exportar"); return; }
+      const fname = `pedidos_${fFecha || 'todos'}.csv`;
+      download(fname, csv);
+    });
+
+    // Exportar detalle del pedido seleccionado
+    $("#btn_export_det").addEventListener("click", () => {
+      if (!selectedPF) { alert("Selecciona un pedido"); return; }
+      const pf = selectedPF;
+      // Construimos un CSV con encabezado del pedido y luego dos secciones
+      const lines = [];
+      lines.push("ID Pedido,Fecha,Cliente,Responsable,Estado,ts_cierre");
+      lines.push([pf.id_lote_pf, pf.fecha || "", pf.cliente_destino || "", pf.responsable || "", pf.estado || "", pf.ts_cierre || ""].map(s => `"${String(s||"").replace(/"/g,'""')}"`).join(","));
+      lines.push("");
+      lines.push("Consumos MP");
+      lines.push("Lote MP,Cantidad,Unidad,Fecha");
+      consMP.filter(r => r.id_lote_pf === pf.id_lote_pf).forEach(r => {
+        lines.push([r.id_lote_mp, r.cantidad, r.unidad || "", new Date(r.ts).toLocaleString()].map(s => `"${String(s||"").replace(/"/g,'""')}"`).join(","));
+      });
+      lines.push("");
+      lines.push("Consumos Empaque");
+      lines.push("Lote Empaque,Cantidad,Unidad,Fecha");
+      consEmp.filter(r => r.id_lote_pf === pf.id_lote_pf).forEach(r => {
+        lines.push([r.id_lote_empaque, r.cantidad, r.unidad || "", new Date(r.ts).toLocaleString()].map(s => `"${String(s||"").replace(/"/g,'""')}"`).join(","));
+      });
+      download(`pedido_${pf.id_lote_pf}.csv`, lines.join("\n"));
+    });
+
+    // Eventos de filtros
+    $("#btn_aplicar").addEventListener("click", applyFilters);
+    $("#btn_limpiar").addEventListener("click", () => {
+      $("#f_fecha").value = "";
+      $("#f_id").value = "";
+      $("#f_cliente").value = "";
+      applyFilters();
+    });
+
+    // Inicial
+    document.addEventListener("DOMContentLoaded", () => {
+      lotesPF = readLS("lotesPF");
+      consMP  = readLS("consumosMP");
+      consEmp = readLS("consumosEmpaque");
+
+      // Fecha por defecto: hoy
+      const today = new Date();
+      const iso = `${today.getFullYear()}-${pad(today.getMonth()+1)}-${pad(today.getDate())}`;
+      $("#f_fecha").value = iso;
+
+      applyFilters();
+    });
+  </script>
+</body>
+</html>
