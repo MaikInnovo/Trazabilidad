@@ -104,7 +104,7 @@
 
       <div id="tabla_mp_wrap">
         <h2>Existencias MP</h2>
-        <p class="muted">Disponible = Neto (kg) recibido − Consumido. Si usaste consumos en otra unidad, estandariza a kg para que el disponible sea correcto.</p>
+        <p class="muted">Disponible = Neto (kg) recibido − Consumido (Local). Por ahora el consumo se toma del navegador; luego lo migraremos al servidor.</p>
         <table id="tabla_mp">
           <thead>
             <tr>
@@ -125,7 +125,7 @@
 
       <div id="tabla_emp_wrap" class="hidden">
         <h2>Existencias Empaque</h2>
-        <p class="muted">Disponible = Recepcionado − Consumido.</p>
+        <p class="muted">Disponible = Recepcionado − Consumido (Local).</p>
         <table id="tabla_emp">
           <thead>
             <tr>
@@ -149,10 +149,12 @@
   </div>
 
   <script>
+    // Config del backend
+    const API_BASE = "http://localhost:3000"; // Puedes cambiar a "http://PCMAIKOL.INNOVOCR.COM:3000"
+    const API_KEY  = "TuClaveLarga_Con_Simbolos123!";
+
     // Helpers
     const $ = s => document.querySelector(s);
-    function readLS(key) { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } }
-    function writeLS(key, arr) { try { localStorage.setItem(key, JSON.stringify(arr)); return true; } catch(e){ alert("No se pudo guardar"); return false; } }
     function toCSV(rows) {
       if (!rows || rows.length === 0) return "";
       const headers = Object.keys(rows[0]);
@@ -170,10 +172,20 @@
       a.href = URL.createObjectURL(new Blob([text], {type:"text/csv;charset=utf-8;"}));
       a.download = filename; a.click(); URL.revokeObjectURL(a.href);
     }
+    async function fetchJSON(url, opts={}) {
+      const res = await fetch(url, {
+        ...opts,
+        headers: { "x-api-key": API_KEY, ...(opts.headers || {}) }
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    }
 
     // Datos en memoria
     let lotesMP = [];
     let lotesEmp = [];
+    // Consumos LOS TOMAMOS DE LOCALSTORAGE POR AHORA
+    function readLS(key) { try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; } }
     let consMP = [];
     let consEmp = [];
 
@@ -196,7 +208,7 @@
       const fDesde = $("#mp_f_desde").value ? new Date($("#mp_f_desde").value + "T00:00:00") : null;
       const fHasta = $("#mp_f_hasta").value ? new Date($("#mp_f_hasta").value + "T23:59:59") : null;
 
-      // Map consumido por lote
+      // Map consumido por lote (LOCAL)
       const consumosMap = {};
       consMP.forEach(r => {
         if (!consumosMap[r.id_lote_mp]) consumosMap[r.id_lote_mp] = 0;
@@ -256,7 +268,7 @@
       const fDesde = $("#emp_f_desde").value ? new Date($("#emp_f_desde").value + "T00:00:00") : null;
       const fHasta = $("#emp_f_hasta").value ? new Date($("#emp_f_hasta").value + "T23:59:59") : null;
 
-      // Map consumido por lote compacto (id_compacto)
+      // Map consumido por lote compacto (LOCAL)
       const consumosMap = {};
       consEmp.forEach(r => {
         if (!consumosMap[r.id_lote_empaque]) consumosMap[r.id_lote_empaque] = 0;
@@ -334,17 +346,18 @@
       $("#emp_f_lote").value = ""; $("#emp_f_desde").value = ""; $("#emp_f_hasta").value = ""; aplicarFiltrosEmp();
     });
 
-    // Eliminar filas (delegación)
-    document.addEventListener("click", (ev) => {
+    // Eliminar filas (ahora contra el servidor)
+    document.addEventListener("click", async (ev) => {
       const btnMP = ev.target.closest("[data-del-mp]");
       if (btnMP) {
         const id = btnMP.getAttribute("data-del-mp");
         if (!confirm(`Eliminar lote MP ${id}?`)) return;
-        const arr = readLS("lotesMP");
-        const newArr = arr.filter(x => (x.id_lote_mp || "").toUpperCase() !== id.toUpperCase());
-        if (writeLS("lotesMP", newArr)) {
-          lotesMP = newArr;
-          aplicarFiltrosMP();
+        try {
+          await fetchJSON(`${API_BASE}/api/inventarioMP/${encodeURIComponent(id)}`, { method: "DELETE" });
+          // refrescamos la lista desde el servidor
+          await loadData(); aplicarFiltrosMP();
+        } catch (e) {
+          alert(`No se pudo eliminar en el servidor: ${e.message}`);
         }
         return;
       }
@@ -352,23 +365,36 @@
       if (btnEmp) {
         const id = btnEmp.getAttribute("data-del-emp");
         if (!confirm(`Eliminar lote de empaque ${id}?`)) return;
-        const arr = readLS("lotesEmpaque");
-        const newArr = arr.filter(x => (x.id_compacto || "") !== id);
-        if (writeLS("lotesEmpaque", newArr)) {
-          lotesEmp = newArr;
-          aplicarFiltrosEmp();
+        try {
+          await fetchJSON(`${API_BASE}/api/inventarioEmpaque/${encodeURIComponent(id)}`, { method: "DELETE" });
+          await loadData(); aplicarFiltrosEmp();
+        } catch (e) {
+          alert(`No se pudo eliminar en el servidor: ${e.message}`);
         }
         return;
       }
     });
 
-    // Inicial
-    document.addEventListener("DOMContentLoaded", () => {
-      lotesMP  = readLS("lotesMP");
-      lotesEmp = readLS("lotesEmpaque");
-      consMP   = readLS("consumosMP");
-      consEmp  = readLS("consumosEmpaque");
+    // Carga inicial desde servidor para inventarios; consumos se leen local por ahora
+    async function loadData() {
+      try {
+        const [mp, emp] = await Promise.all([
+          fetchJSON(`${API_BASE}/api/inventarioMP`),
+          fetchJSON(`${API_BASE}/api/inventarioEmpaque`)
+        ]);
+        lotesMP = Array.isArray(mp) ? mp : [];
+        lotesEmp = Array.isArray(emp) ? emp : [];
+      } catch (e) {
+        alert(`Error cargando inventario del servidor: ${e.message}`);
+        lotesMP = []; lotesEmp = [];
+      }
+      consMP = readLS("consumosMP");
+      consEmp = readLS("consumosEmpaque");
+    }
 
+    // Inicial
+    document.addEventListener("DOMContentLoaded", async () => {
+      await loadData();
       aplicarFiltrosMP(); // pestaña por defecto
     });
   </script>
